@@ -4,7 +4,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7c6af7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Stopper</title>
+<link rel="manifest" href="manifest.json">
 <style>
 /* Stopper – Inline CSS */
 :root {
@@ -121,37 +125,54 @@ html, body {
 }
 .drum-fade-top { top: 0; background: linear-gradient(to bottom, var(--drum-bg), transparent); }
 .drum-fade-bottom { bottom: 0; background: linear-gradient(to top, var(--drum-bg), transparent); }
+/* Focus styles for keyboard navigation */
+:focus-visible {
+  outline: 3px solid var(--arc-normal);
+  outline-offset: 2px;
+}
+.btn:focus-visible, .dur-btn:focus-visible, #themeBtn:focus-visible {
+  outline: 3px solid var(--arc-normal);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(124,106,247,0.2);
+}
+/* Keyboard hint */
+#kbd-hint {
+  position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+  font-size: 0.62rem; color: var(--text); opacity: 0.28;
+  pointer-events: none; white-space: nowrap; letter-spacing: 0.03em;
+}
 </style>
 </head>
 <body>
 <div id="app">
   <div class="header">
-    <button id="themeBtn">Sötét</button>
+    <button id="themeBtn" aria-label="Téma váltása sötétre" aria-pressed="false">Sötét</button>
   </div>
   <div class="clock-area">
-    <div id="clock-wrap"></div>
+    <div id="clock-wrap" role="timer" aria-live="polite" aria-atomic="true" aria-label="Hátralévő idő: 01:00"></div>
   </div>
   <div class="controls">
     <div class="btn-row">
-      <button class="btn" id="btnStop">⏹ Stop</button>
-      <button class="btn" id="btnStart">▶ Indít</button>
+      <button class="btn" id="btnStop" aria-label="Stop">⏹ Stop</button>
+      <button class="btn" id="btnStart" aria-label="Indítás">▶ Indít</button>
     </div>
     <div class="dur-row">
-      <button class="dur-btn" id="dur60">1:00</button>
-      <button class="dur-btn" id="dur90">1:30</button>
+      <button class="dur-btn" id="dur60" aria-label="1 perc beállítása">1:00</button>
+      <button class="dur-btn" id="dur90" aria-label="1 perc 30 másodperc beállítása">1:30</button>
     </div>
     <div class="drums-row">
       <div class="drum-col">
         <span class="drum-label">Perc</span>
-        <div class="drum-container" id="drumMin"></div>
+        <div class="drum-container" id="drumMin" role="spinbutton" aria-label="Percek" aria-valuemin="0" aria-valuemax="60" aria-valuenow="1"></div>
       </div>
       <div class="drum-col">
         <span class="drum-label">Mp</span>
-        <div class="drum-container" id="drumSec"></div>
+        <div class="drum-container" id="drumSec" role="spinbutton" aria-label="Másodpercek" aria-valuemin="0" aria-valuemax="59" aria-valuenow="0"></div>
       </div>
     </div>
   </div>
 </div>
+<div id="kbd-hint">Szóköz: indít/megáll &nbsp;·&nbsp; R: reset &nbsp;·&nbsp; ↑↓ perc &nbsp;·&nbsp; ←→ mp</div>
 
 <script>
 /* Stopper – Inline JS */
@@ -169,6 +190,10 @@ html, body {
   let ttsUnlocked = false;
   let preferredVoice = null;
   let isDark = false;
+
+  // Timer accuracy: anchor point for drift-free countdown
+  let timerStartAt = 0;
+  let timerStartLeft = 0;
 
   const STROKE_W = 11;
   const KNOB_R = 9;
@@ -190,14 +215,33 @@ html, body {
   const drumMinEl = document.getElementById("drumMin");
   const drumSecEl = document.getElementById("drumSec");
 
+  // ── localStorage ──
+  function savePreset() {
+    try {
+      localStorage.setItem("stopper_min", customMin);
+      localStorage.setItem("stopper_sec", customSec);
+    } catch(e) {}
+  }
+
+  function loadPreset() {
+    try {
+      const m = parseInt(localStorage.getItem("stopper_min"), 10);
+      const s = parseInt(localStorage.getItem("stopper_sec"), 10);
+      if (!isNaN(m) && m >= 0 && m <= 60) customMin = m;
+      if (!isNaN(s) && s >= 0 && s < 60) customSec = s;
+    } catch(e) {}
+  }
+
   // ── Theme ──
   function setTheme(dark) {
     isDark = dark;
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "");
-    // Explicit bg set – iframe sandbox sometimes ignores CSS var inheritance
     document.body.style.backgroundColor = dark ? "#1a1a24" : "#f2f2f7";
     document.documentElement.style.backgroundColor = dark ? "#1a1a24" : "#f2f2f7";
     themeBtn.textContent = dark ? "Világos" : "Sötét";
+    themeBtn.setAttribute("aria-label", dark ? "Téma váltása világosra" : "Téma váltása sötétre");
+    themeBtn.setAttribute("aria-pressed", dark ? "true" : "false");
+    try { localStorage.setItem("stopper_theme", dark ? "dark" : "light"); } catch(e) {}
     renderClock();
   }
   themeBtn.addEventListener("click", () => setTheme(!isDark));
@@ -236,7 +280,6 @@ html, body {
       arcSvg = `<path d="M${sx},${sy} A${r},${r} 0 ${largeArc} 1 ${kx},${ky}" fill="none" stroke="${arcColor}" stroke-width="${STROKE_W}" stroke-linecap="round"/>`;
       knobSvg = `<circle cx="${kx}" cy="${ky}" r="${KNOB_R}" fill="${arcColor}"/>`;
     } else if (frac >= 1) {
-      // Full circle + knob at 12 o'clock (top)
       arcSvg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${arcColor}" stroke-width="${STROKE_W}"/>`;
       knobSvg = `<circle cx="${cx}" cy="${cy - r}" r="${KNOB_R}" fill="${arcColor}"/>`;
     }
@@ -251,10 +294,16 @@ html, body {
       digitText = `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${digitSize}" font-weight="800" fill="${arcColor}">${mm}:${ss}</text>`;
     }
 
-    clockWrap.innerHTML = `<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">
+    clockWrap.innerHTML = `<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" aria-hidden="true">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${trackColor}" stroke-width="${STROKE_W}"/>
       ${arcSvg}${knobSvg}${digitText}
     </svg>`;
+
+    // Update ARIA label for screen readers
+    const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
+    const ss = String(timeLeft % 60).padStart(2, "0");
+    clockWrap.setAttribute("aria-label",
+      state === "finished" ? "Idő lejárt!" : `Hátralévő idő: ${mm}:${ss}`);
   }
 
   // ── Pointer on clock ──
@@ -322,36 +371,43 @@ html, body {
     else if (state === "idle" || state === "paused") { unlockTTS(); startTimer(); }
   });
 
-  // ── Timer ──
-  let lastTickTime = 0;
-
+  // ── Timer (drift-compensated via performance.now()) ──
   function startTimer() {
     if (totalSec < 1) return;
     if (state === "idle") { timeLeft = totalSec; lastSpoken = -1; }
     state = "running";
-    lastTickTime = Date.now();
-    scheduleTick();
+    timerStartAt = performance.now();
+    timerStartLeft = timeLeft;
+    scheduleNextTick();
     updateUI();
   }
 
-  function scheduleTick() {
+  function scheduleNextTick() {
     if (state !== "running") return;
-    const elapsed = Date.now() - lastTickTime;
-    tickTimer = setTimeout(tick, Math.max(10, 1000 - (elapsed % 1000)));
+    const msElapsed = performance.now() - timerStartAt;
+    const msToNext = 1000 - (msElapsed % 1000);
+    tickTimer = setTimeout(tick, Math.max(10, msToNext));
   }
 
   function tick() {
     if (state !== "running") return;
-    lastTickTime = Date.now();
-    timeLeft--;
-    if (timeLeft <= 10 && timeLeft >= 1) speak(timeLeft);
+    const secElapsed = Math.floor((performance.now() - timerStartAt) / 1000);
+    const newLeft = Math.max(0, timerStartLeft - secElapsed);
+
+    // Speak any skipped countdown values (e.g. after device wake-up)
+    for (let t = timeLeft - 1; t >= newLeft && t >= 0; t--) {
+      if (t <= 10) speak(t);
+    }
+    timeLeft = newLeft;
+
     if (timeLeft <= 0) {
-      timeLeft = 0; state = "finished"; speak(0);
+      timeLeft = 0; state = "finished";
+      playBeep(); vibrate();
       renderClock(); updateUI();
       finishTimer = setTimeout(resetToIdle, 5000);
       return;
     }
-    renderClock(); updateUI(); scheduleTick();
+    renderClock(); updateUI(); scheduleNextTick();
   }
 
   function stopTimer() {
@@ -364,6 +420,37 @@ html, body {
     tickTimer = null; finishTimer = null;
     state = "idle"; timeLeft = totalSec; lastSpoken = -1;
     renderClock(); updateUI();
+  }
+
+  // ── Visibility change (sleep/wake sync) ──
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && state === "running") {
+      clearTimeout(tickTimer); tickTimer = null;
+      tick(); // Re-sync immediately on wake
+    }
+  });
+
+  // ── Audio beep (Web Audio API) ──
+  function playBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.6);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.8);
+      setTimeout(() => ctx.close(), 1500);
+    } catch(e) {}
+  }
+
+  // ── Vibration (mobile) ──
+  function vibrate() {
+    try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch(e) {}
   }
 
   // ── TTS ──
@@ -390,21 +477,78 @@ html, body {
     speechSynthesis.speak(u);
   }
 
+  // ── Keyboard controls ──
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    switch (e.code) {
+      case "Space":
+      case "Enter":
+        e.preventDefault();
+        if (state === "running") stopTimer();
+        else if (state === "idle" || state === "paused") { unlockTTS(); startTimer(); }
+        else if (state === "finished") resetToIdle();
+        break;
+      case "KeyR":
+        e.preventDefault();
+        if (state !== "idle") resetToIdle();
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (state === "idle" || state === "paused") adjustTime(60);
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        if (state === "idle" || state === "paused") adjustTime(-60);
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        if (state === "idle" || state === "paused") adjustTime(5);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        if (state === "idle" || state === "paused") adjustTime(-5);
+        break;
+    }
+  });
+
+  function adjustTime(deltaSec) {
+    if (state === "paused" || state === "finished") {
+      clearTimeout(tickTimer); clearTimeout(finishTimer);
+      tickTimer = null; finishTimer = null;
+      state = "idle"; lastSpoken = -1;
+    }
+    const sec = Math.max(1, Math.min(3600, totalSec + deltaSec));
+    totalSec = sec; timeLeft = sec;
+    customMin = Math.floor(sec / 60); customSec = sec % 60;
+    minDrum.scrollToValue(customMin, true);
+    secDrum.scrollToValue(customSec, true);
+    savePreset();
+    updateUI();
+  }
+
   // ── UI ──
   function updateUI() {
     switch (state) {
       case "idle":
-        btnStop.style.visibility = "hidden"; btnStop.textContent = "⏹ Stop";
-        btnStart.textContent = "▶ Indít"; btnStart.disabled = false; break;
+        btnStop.style.visibility = "hidden";
+        btnStop.textContent = "⏹ Stop"; btnStop.setAttribute("aria-label", "Stop");
+        btnStart.textContent = "▶ Indít"; btnStart.disabled = false;
+        btnStart.setAttribute("aria-label", "Indítás"); break;
       case "running":
-        btnStop.style.visibility = "visible"; btnStop.textContent = "⏹ Stop";
-        btnStart.textContent = "▶ Indít"; btnStart.disabled = true; break;
+        btnStop.style.visibility = "visible";
+        btnStop.textContent = "⏹ Stop"; btnStop.setAttribute("aria-label", "Megállítás");
+        btnStart.textContent = "▶ Indít"; btnStart.disabled = true;
+        btnStart.setAttribute("aria-label", "Indítás"); break;
       case "paused":
-        btnStop.style.visibility = "visible"; btnStop.textContent = "↺ Reset";
-        btnStart.textContent = "▶ Folytat"; btnStart.disabled = false; break;
+        btnStop.style.visibility = "visible";
+        btnStop.textContent = "↺ Reset"; btnStop.setAttribute("aria-label", "Visszaállítás");
+        btnStart.textContent = "▶ Folytat"; btnStart.disabled = false;
+        btnStart.setAttribute("aria-label", "Folytatás"); break;
       case "finished":
-        btnStop.style.visibility = "visible"; btnStop.textContent = "↺ Reset";
-        btnStart.textContent = "▶ Indít"; btnStart.disabled = true; break;
+        btnStop.style.visibility = "visible";
+        btnStop.textContent = "↺ Reset"; btnStop.setAttribute("aria-label", "Visszaállítás");
+        btnStart.textContent = "▶ Indít"; btnStart.disabled = true;
+        btnStart.setAttribute("aria-label", "Indítás"); break;
     }
     const durDis = state === "running";
     dur60.disabled = durDis; dur90.disabled = durDis;
@@ -414,6 +558,11 @@ html, body {
     const drumLocked = state === "running";
     drumMinEl.classList.toggle("locked", drumLocked);
     drumSecEl.classList.toggle("locked", drumLocked || customMin === 60);
+
+    // Update ARIA values on drum spinbuttons
+    drumMinEl.setAttribute("aria-valuenow", customMin);
+    drumSecEl.setAttribute("aria-valuenow", customSec);
+
     renderClock();
   }
 
@@ -438,6 +587,7 @@ html, body {
     customMin = Math.floor(sec / 60); customSec = sec % 60;
     minDrum.scrollToValue(customMin, true);
     secDrum.scrollToValue(customSec, true);
+    savePreset();
     updateUI();
   }
   dur60.addEventListener("click", () => setDuration(60));
@@ -607,13 +757,12 @@ html, body {
     customMin = val;
     applyDrumValues();
   }, (finalVal) => {
-    // onSettled: only when drum fully stops at 60 → lock & reset sec
     if (finalVal === 60 && customSec !== 0) {
       customSec = 0;
       secDrum.scrollToValue(0, true);
       applyDrumValues();
     }
-    updateUI(); // refresh sec drum lock state
+    updateUI();
   });
   const secDrum = new Drum(drumSecEl, 60, (val) => {
     customSec = val;
@@ -630,13 +779,27 @@ html, body {
     let sec = customMin * 60 + customSec;
     sec = Math.max(1, Math.min(3600, sec));
     totalSec = sec; timeLeft = sec;
+    savePreset();
     updateUI();
   }
 
-  // ── Init & Resize ──
-  minDrum.scrollToValue(1, false);
-  secDrum.scrollToValue(0, false);
-  updateUI(); renderClock();
+  // ── Init ──
+  // Load saved theme
+  try {
+    if (localStorage.getItem("stopper_theme") === "dark") isDark = true;
+  } catch(e) {}
+
+  // Load saved preset
+  loadPreset();
+
+  // Apply initial values
+  const initSec = Math.max(1, Math.min(3600, customMin * 60 + customSec));
+  totalSec = initSec; timeLeft = initSec;
+
+  minDrum.scrollToValue(customMin, false);
+  secDrum.scrollToValue(customSec, false);
+  setTheme(isDark);
+  updateUI();
 
   let resizeRaf = null;
   function onResize() {
@@ -645,6 +808,11 @@ html, body {
   }
   window.addEventListener("resize", onResize);
   if (window.visualViewport) window.visualViewport.addEventListener("resize", onResize);
+
+  // ── Service Worker registration ──
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
 })();
 </script>
 
