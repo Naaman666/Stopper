@@ -1,0 +1,2 @@
+# Stopper
+Simple stopper
