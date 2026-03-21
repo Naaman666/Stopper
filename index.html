@@ -136,6 +136,7 @@ html, body {
 }
 .preset-slot.cursor { border-color: var(--save-clr); background: var(--save-clr-light); color: var(--save-clr); }
 .preset-slot.active { background: var(--dur-active-bg); color: var(--text-inv); border-color: transparent; }
+.preset-slot.cursor.active { border-color: var(--save-clr); }
 .preset-slot.empty { opacity: 0.4; }
 .preset-slot:disabled { opacity: 0.45; cursor: default; }
 .drums-row {
@@ -1000,7 +1001,15 @@ html, body {
 
   // Clock visszaállítás biztonsági mentés – ha a renderClock() nem futott le
   requestAnimationFrame(() => { try { renderClock(); } catch(e) {} });
-  window.addEventListener("load", () => { try { renderClock(); updateUI(); } catch(e) {} });
+  // Első betöltésnél Brave is rendereli a dobosokat és az órát
+  function fullRedraw() {
+    try { minDrum.scrollToValue(customMin, false); } catch(e) {}
+    try { secDrum.scrollToValue(customSec, false); } catch(e) {}
+    try { renderClock(); } catch(e) {}
+    try { updateUI(); } catch(e) {}
+  }
+  window.addEventListener("load", fullRedraw);
+  setTimeout(fullRedraw, 150);
 
   // Clock újrarenderelés méretre – ResizeObserver a clock-area-n
   const clockArea = document.querySelector(".clock-area");
