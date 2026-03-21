@@ -57,14 +57,15 @@ html, body {
   transition: background 0.3s;
 }
 #app {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   max-width: 480px;
   margin: 0 auto;
   height: 100%;
-  padding: max(10px, env(safe-area-inset-top)) 20px max(80px, calc(60px + env(safe-area-inset-bottom)));
+  overflow: hidden;
+  padding: max(10px, env(safe-area-inset-top)) 20px 0;
 }
-.header { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+.header { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; flex-shrink: 0; }
 .swatch-row { display: flex; gap: 8px; align-items: center; }
 .swatch {
   width: 26px; height: 26px; border-radius: 8px; border: none; cursor: pointer;
@@ -89,10 +90,10 @@ html, body {
   transition: background 0.2s, color 0.2s, border-color 0.3s;
 }
 #themeBtn:active { background: var(--arc-normal); color: var(--text-inv); }
-.clock-area { display: flex; align-items: center; justify-content: center; }
+.clock-area { display: flex; align-items: center; justify-content: center; flex: 1 1 0; min-height: 0; overflow: hidden; }
 #clock-wrap { touch-action: none; cursor: pointer; }
 #clock-wrap svg { display: block; }
-.controls { display: flex; flex-direction: column; gap: 10px; }
+.controls { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; padding-bottom: max(80px, calc(60px + env(safe-area-inset-bottom))); overflow-y: auto; }
 .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .btn {
   height: 52px; border-radius: 14px; border: none;
@@ -105,15 +106,32 @@ html, body {
 .btn:disabled { opacity: 0.45; cursor: default; }
 #btnStop { background: var(--btn-stop-bg); }
 #btnStart { background: var(--btn-start-bg); }
-.dur-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.dur-btn {
-  height: 38px; border-radius: 10px; border: none;
-  font-size: 0.88rem; font-weight: 700; cursor: pointer;
+.preset-row { display: flex; gap: 10px; align-items: center; }
+.preset-save-btn {
+  flex-shrink: 0; width: 60px; height: 38px;
+  border-radius: 10px; border: none;
+  font-size: 0.75rem; font-weight: 700; cursor: pointer;
   background: var(--dur-inactive-bg); color: var(--drum-item);
-  transition: background 0.2s, color 0.2s, opacity 0.15s;
+  transition: background 0.15s, opacity 0.15s;
 }
-.dur-btn.active { background: var(--dur-active-bg); color: var(--text-inv); }
-.dur-btn:disabled { opacity: 0.45; cursor: default; }
+.preset-save-btn:active:not(:disabled) { opacity: 0.7; }
+.preset-save-btn:disabled { opacity: 0.45; cursor: default; }
+.preset-scroll {
+  flex: 1; display: flex; gap: 8px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.preset-scroll::-webkit-scrollbar { display: none; }
+.preset-slot {
+  flex-shrink: 0; /* width JS-sel van beállítva */ height: 38px;
+  border-radius: 10px; border: 2px solid transparent;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  background: var(--dur-inactive-bg); color: var(--drum-item);
+  transition: background 0.2s, color 0.2s, opacity 0.15s, border-color 0.2s;
+}
+.preset-slot.cursor { border-color: var(--arc-normal); }
+.preset-slot.active { background: var(--dur-active-bg); color: var(--text-inv); border-color: transparent; }
+.preset-slot.empty { opacity: 0.4; }
+.preset-slot:disabled { opacity: 0.45; cursor: default; }
 .drums-row {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
   margin-top: 4px;
@@ -147,14 +165,14 @@ html, body {
   outline: 3px solid var(--arc-normal);
   outline-offset: 2px;
 }
-.btn:focus-visible, .dur-btn:focus-visible, #themeBtn:focus-visible {
+.btn:focus-visible, .preset-slot:focus-visible, .preset-save-btn:focus-visible, #themeBtn:focus-visible {
   outline: 3px solid var(--arc-normal);
   outline-offset: 3px;
   box-shadow: 0 0 0 5px rgba(124,106,247,0.2);
 }
 /* Keyboard hint */
 #kbd-hint {
-  position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+  text-align: center; margin-top: 10px;
   font-size: 0.62rem; color: var(--text); opacity: 0.28;
   pointer-events: none; white-space: nowrap; letter-spacing: 0.03em;
 }
@@ -177,9 +195,9 @@ html, body {
       <button class="btn" id="btnStop" aria-label="Stop">⏹ Stop</button>
       <button class="btn" id="btnStart" aria-label="Indítás">▶ Indít</button>
     </div>
-    <div class="dur-row">
-      <button class="dur-btn" id="dur60" aria-label="1 perc beállítása">1:00</button>
-      <button class="dur-btn" id="dur90" aria-label="1 perc 30 másodperc beállítása">1:30</button>
+    <div class="preset-row">
+      <button class="preset-save-btn" id="btnSavePreset" aria-label="Mentés az aktív helyre">Ment</button>
+      <div class="preset-scroll" id="presetScroll" role="listbox" aria-label="Előbeállított idők"></div>
     </div>
     <div class="drums-row">
       <div class="drum-col">
@@ -191,9 +209,9 @@ html, body {
         <div class="drum-container" id="drumSec" role="spinbutton" aria-label="Másodpercek" aria-valuemin="0" aria-valuemax="59" aria-valuenow="0"></div>
       </div>
     </div>
+    <div id="kbd-hint">Szóköz: indít/megáll &nbsp;·&nbsp; R: reset &nbsp;·&nbsp; ↑↓ perc &nbsp;·&nbsp; ←→ mp</div>
   </div>
 </div>
-<div id="kbd-hint">Szóköz: indít/megáll &nbsp;·&nbsp; R: reset &nbsp;·&nbsp; ↑↓ perc &nbsp;·&nbsp; ←→ mp</div>
 
 <script>
 /* Stopper – Inline JS */
@@ -280,10 +298,12 @@ html, body {
   const clockWrap = document.getElementById("clock-wrap");
   const btnStop = document.getElementById("btnStop");
   const btnStart = document.getElementById("btnStart");
-  const dur60 = document.getElementById("dur60");
-  const dur90 = document.getElementById("dur90");
   const drumMinEl = document.getElementById("drumMin");
   const drumSecEl = document.getElementById("drumSec");
+
+  // ── Preset slots ──
+  let presets = Array(10).fill(null);
+  let presetCursorIdx = 0;
 
   // ── localStorage ──
   function savePreset() {
@@ -302,6 +322,82 @@ html, body {
     } catch(e) {}
   }
 
+  function loadPresets() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("stopper_presets"));
+      if (Array.isArray(saved) && saved.length === 10) {
+        presets = saved;
+        return;
+      }
+    } catch(e) {}
+    // Defaults: 1:00 és 1:30
+    presets[0] = { min: 1, sec: 0 };
+    presets[1] = { min: 1, sec: 30 };
+  }
+
+  function savePresets() {
+    try { localStorage.setItem("stopper_presets", JSON.stringify(presets)); } catch(e) {}
+  }
+
+  function presetLabel(p) {
+    if (!p) return "–";
+    return `${p.min}:${String(p.sec).padStart(2, "0")}`;
+  }
+
+  const P_COUNT = 10;
+
+  function renderPresets() {
+    const scroll = document.getElementById("presetScroll");
+    if (!scroll) return;
+    scroll.querySelectorAll(".preset-slot").forEach((slot, i) => {
+      const p = presets[i];
+      slot.textContent = presetLabel(p);
+      slot.classList.toggle("cursor", i === presetCursorIdx);
+      slot.classList.toggle("active", !!p && totalSec === p.min * 60 + p.sec);
+      slot.classList.toggle("empty", !p);
+      slot.disabled = state === "running";
+    });
+    const btnSave = document.getElementById("btnSavePreset");
+    if (btnSave) btnSave.disabled = state === "running";
+  }
+
+  function initPresetUI() {
+    const scroll = document.getElementById("presetScroll");
+    const btnSave = document.getElementById("btnSavePreset");
+
+    for (let i = 0; i < P_COUNT; i++) {
+      const btn = document.createElement("button");
+      btn.className = "preset-slot";
+      btn.setAttribute("role", "option");
+      btn.addEventListener("click", () => {
+        presetCursorIdx = i;
+        const p = presets[i];
+        if (p) setDuration(p.min * 60 + p.sec);
+        renderPresets();
+      });
+      scroll.appendChild(btn);
+    }
+
+    // Slot szélességét ResizeObserver-rel állítjuk (garantáltan a layout után)
+    const ro = new ResizeObserver(() => {
+      const GAP = 8;
+      const w = Math.floor((scroll.clientWidth - GAP * 2) / 3);
+      if (w <= 0) return;
+      scroll.querySelectorAll(".preset-slot").forEach(s => { s.style.width = w + "px"; });
+    });
+    ro.observe(scroll);
+
+    btnSave.addEventListener("click", () => {
+      presets[presetCursorIdx] = { min: customMin, sec: customSec };
+      savePresets();
+      renderPresets();
+      btnSave.textContent = "OK!";
+      setTimeout(() => { btnSave.textContent = "Ment"; }, 800);
+    });
+
+    renderPresets();
+  }
+
   // ── Theme ──
   function setTheme(dark) {
     isDark = dark;
@@ -318,6 +414,12 @@ html, body {
 
   // ── Clock ──
   function getClockSize() {
+    const area = document.querySelector(".clock-area");
+    if (area) {
+      const h = area.clientHeight;
+      const w = area.clientWidth;
+      if (h > 40 && w > 40) return Math.min(w, h) - 4;
+    }
     const vp = window.visualViewport || { width: window.innerWidth, height: window.innerHeight };
     return Math.max(80, Math.min(vp.width - 32, vp.height - 220));
   }
@@ -620,10 +722,7 @@ html, body {
         btnStart.textContent = "▶ Indít"; btnStart.disabled = true;
         btnStart.setAttribute("aria-label", "Indítás"); break;
     }
-    const durDis = state === "running";
-    dur60.disabled = durDis; dur90.disabled = durDis;
-    dur60.classList.toggle("active", totalSec === 60);
-    dur90.classList.toggle("active", totalSec === 90);
+    renderPresets();
 
     const drumLocked = state === "running";
     drumMinEl.classList.toggle("locked", drumLocked);
@@ -660,8 +759,6 @@ html, body {
     savePreset();
     updateUI();
   }
-  dur60.addEventListener("click", () => setDuration(60));
-  dur90.addEventListener("click", () => setDuration(90));
 
   // ── Drum ──
   class Drum {
@@ -871,6 +968,7 @@ html, body {
 
   // Load saved preset
   loadPreset();
+  loadPresets();
 
   // Apply initial values
   const initSec = Math.max(1, Math.min(3600, customMin * 60 + customSec));
@@ -879,15 +977,23 @@ html, body {
   minDrum.scrollToValue(customMin, false);
   secDrum.scrollToValue(customSec, false);
   setTheme(isDark); // sets dark/light vars, then calls applyPalette internally
+  initPresetUI();
   updateUI();
 
-  let resizeRaf = null;
-  function onResize() {
-    if (resizeRaf) return;
-    resizeRaf = requestAnimationFrame(() => { resizeRaf = null; renderClock(); });
+  // Clock újrarenderelés méretre – ResizeObserver a clock-area-n
+  const clockArea = document.querySelector(".clock-area");
+  if (clockArea && typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(() => renderClock()).observe(clockArea);
+  } else {
+    // fallback: window resize
+    let resizeRaf = null;
+    function onResize() {
+      if (resizeRaf) return;
+      resizeRaf = requestAnimationFrame(() => { resizeRaf = null; renderClock(); });
+    }
+    window.addEventListener("resize", onResize);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", onResize);
   }
-  window.addEventListener("resize", onResize);
-  if (window.visualViewport) window.visualViewport.addEventListener("resize", onResize);
 
   // ── Service Worker registration ──
   if ("serviceWorker" in navigator) {
