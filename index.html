@@ -542,8 +542,10 @@ html, body {
     const ky = cyS + r * Math.sin(endRad);
 
     if (Math.hypot(px - kx, py - ky) < 60 && state !== "finished") {
-      // Knob aktuális szöge (fok, 0=12óra, CW növekvő)
-      dragLastDeg = frac * 360;
+      // Az ujj aktuális szöge (nem a knob-é!) – így nincs ugrás induláskor
+      let startDeg = Math.atan2(py - cyS, px - cxS) * (180 / Math.PI) + 90;
+      if (startDeg < 0) startDeg += 360;
+      dragLastDeg = startDeg;
       dragTimeout = setTimeout(() => {
         if (pointerMoved) {
           dragActive = true;
@@ -555,19 +557,21 @@ html, body {
 
   clockWrap.addEventListener("pointermove", (e) => {
     pointerMoved = true;
-    if (!dragActive) return;
-    e.preventDefault();
     const rect = clockWrap.getBoundingClientRect();
     const sz = getClockSize();
     const r = sz / 2 - STROKE_W - KNOB_R - 2;
     const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
 
+    let deg = Math.atan2(e.clientY - cyS, e.clientX - cxS) * (180 / Math.PI) + 90;
+    if (deg < 0) deg += 360;
+
+    // Drag aktiválás előtt is frissítjük, hogy ne legyen ugrás
+    if (!dragActive) { dragLastDeg = deg; return; }
+    e.preventDefault();
+
     // Csak az ív közelében fogadjuk el a mozgást
     const dist = Math.hypot(e.clientX - cxS, e.clientY - cyS);
     if (Math.abs(dist - r) > KNOB_R * 3) return;
-
-    let deg = Math.atan2(e.clientY - cyS, e.clientX - cxS) * (180 / Math.PI) + 90;
-    if (deg < 0) deg += 360;
 
     // Szögirány ellenőrzése (delta: + = CW, - = CCW)
     let deltaDeg = deg - dragLastDeg;
@@ -577,9 +581,7 @@ html, body {
     // Relatív elmozdítás: a deltaDeg arányában módosítjuk a timeLeft-et
     const deltaSec = (deltaDeg / 360) * totalSec;
     const newTimeLeft = Math.round(Math.max(1, Math.min(totalSec, timeLeft + deltaSec)));
-    // dragLastDeg-et a knob tényleges szögéből számoljuk vissza,
-    // hogy ne halmozódjon kerekítési hiba
-    dragLastDeg = (newTimeLeft / totalSec) * 360;
+    dragLastDeg = deg;
     if (newTimeLeft === timeLeft) return;
     timeLeft = newTimeLeft;
     renderClock();
