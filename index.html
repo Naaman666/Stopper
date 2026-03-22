@@ -518,7 +518,6 @@ html, body {
   let dragTimeout = null;
   let pointerDownTime = 0;
   let pointerMoved = false;
-  let dragStartedDecreasing = false;
   let dragLastDeg = 0;
 
   clockWrap.addEventListener("pointerdown", (e) => {
@@ -527,7 +526,7 @@ html, body {
     pointerDownTime = Date.now();
     pointerMoved = false;
     dragActive = false;
-    dragStartedDecreasing = false;
+
 
     const rect = clockWrap.getBoundingClientRect();
     const sz = getClockSize();
@@ -570,14 +569,17 @@ html, body {
     if (deltaDeg > 180) deltaDeg -= 360;
     else if (deltaDeg < -180) deltaDeg += 360;
 
-    // Első mozdulat: csak CCW (csökkentés) irányba engedjük
-    if (!dragStartedDecreasing) {
-      if (deltaDeg >= 0) return; // CW (növelés) blokkolva
-      dragStartedDecreasing = true;
-    }
+    // Csak CCW (csökkentés) irányba engedjük, CW mindig blokkolva
+    if (deltaDeg >= 0) return;
 
     dragLastDeg = deg;
     const newTimeLeft = Math.max(1, Math.min(totalSec, Math.round((deg / 360) * totalSec)));
+    // Ne lehessen áttekerni a 0-n: ha az új érték nagyobb mint az aktuális, akkor áttekertünk
+    if (newTimeLeft > timeLeft) {
+      timeLeft = 1;
+      renderClock();
+      return;
+    }
     timeLeft = newTimeLeft;
     renderClock();
   });
