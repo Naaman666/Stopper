@@ -519,6 +519,7 @@ html, body {
   let pointerDownTime = 0;
   let pointerMoved = false;
   let dragStartedDecreasing = false;
+  let dragLastDeg = 0;
 
   clockWrap.addEventListener("pointerdown", (e) => {
     e.preventDefault();
@@ -542,6 +543,8 @@ html, body {
     const ky = cyS + r * Math.sin(endRad);
 
     if (Math.hypot(px - kx, py - ky) < 60 && state !== "finished") {
+      // Knob aktuális szöge (fok, 0=12óra, CW növekvő)
+      dragLastDeg = frac * 360;
       dragTimeout = setTimeout(() => {
         if (pointerMoved) {
           dragActive = true;
@@ -561,12 +564,20 @@ html, body {
     const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
     let deg = Math.atan2(e.clientY - cyS, e.clientX - cxS) * (180 / Math.PI) + 90;
     if (deg < 0) deg += 360;
-    const newTimeLeft = Math.max(1, Math.min(totalSec, Math.round((deg / 360) * totalSec)));
-    // Első mozdulat csak csökkentés lehet, utána mindkét irányba szabad
+
+    // Szögirány ellenőrzése (delta: + = CW, - = CCW)
+    let deltaDeg = deg - dragLastDeg;
+    if (deltaDeg > 180) deltaDeg -= 360;
+    else if (deltaDeg < -180) deltaDeg += 360;
+
+    // Első mozdulat: csak CCW (csökkentés) irányba engedjük
     if (!dragStartedDecreasing) {
-      if (newTimeLeft >= timeLeft) return;
+      if (deltaDeg >= 0) return; // CW (növelés) blokkolva
       dragStartedDecreasing = true;
     }
+
+    dragLastDeg = deg;
+    const newTimeLeft = Math.max(1, Math.min(totalSec, Math.round((deg / 360) * totalSec)));
     timeLeft = newTimeLeft;
     renderClock();
   });
