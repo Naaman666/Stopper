@@ -4,8 +4,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <meta name="theme-color" content="#7c6af7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -154,12 +152,11 @@ html, body {
   transition: opacity 0.2s;
 }
 .drum-container.locked { opacity: 0.32; pointer-events: none; }
-.drum-track { position: absolute; left: 0; right: 0; -webkit-transform: translateZ(0); transform: translateZ(0); }
+.drum-track { position: absolute; left: 0; right: 0; will-change: transform; }
 .drum-item {
   height: 50px; display: flex; align-items: center; justify-content: center;
   font-size: 1.3rem; font-weight: 700; color: var(--drum-item);
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
+  will-change: transform, opacity;
 }
 .drum-sel {
   position: absolute; left: 10px; right: 10px; height: 50px; top: 50px;
@@ -223,7 +220,6 @@ html, body {
   let preferredVoice = null;
   let isDark = false;
   let currentPalette = "purple";
-  // Brave compat: CSS vars gyorsítótára, kerüli a getComputedStyle() blokkolást
   let ccNormal = "#7c6af7", ccTrack = "#1c1c2e", ccAlert = "#ff3b30";
 
   const PALETTES = {
@@ -271,7 +267,7 @@ html, body {
     document.getElementById("swatchPurple").setAttribute("aria-pressed", name === "purple" ? "true" : "false");
     document.getElementById("swatchGreen").classList.toggle("active", name === "green");
     document.getElementById("swatchGreen").setAttribute("aria-pressed", name === "green" ? "true" : "false");
-    try { localStorage.setItem("stopper_palette", name); } catch(e) {}
+    localStorage.setItem("stopper_palette", name);
     renderClock();
   }
 
@@ -296,10 +292,8 @@ html, body {
   const btnStart = document.getElementById("btnStart");
   const drumMinEl = document.getElementById("drumMin");
   const drumSecEl = document.getElementById("drumSec");
-  // minDrum/secDrum: let, hogy try-catch-ben lehessen inicializálni
   let minDrum = null, secDrum = null;
 
-  // ── Safety net: IIFE crash esetén is fut (function hoist miatt elérhető) ──
   function updatePresetSlotWidths() {
     const scroll = document.getElementById("presetScroll");
     if (!scroll) return;
@@ -309,28 +303,21 @@ html, body {
     scroll.querySelectorAll(".preset-slot").forEach(s => { s.style.width = w + "px"; });
   }
   function fullRedraw() {
-    try { tryInitDrums(); } catch(e) {}
-    try { initPresetUI(); } catch(e) {}
-    try { updatePresetSlotWidths(); } catch(e) {}
-    try { renderClock(); } catch(e) {}
-    try { updateUI(); } catch(e) {}
-    // Kényszerített repaint a drum track-ekre (Safari + Brave)
-    try {
-      if (minDrum && minDrum.track) {
-        minDrum.track.style.display = "none"; minDrum.track.offsetHeight; minDrum.track.style.display = "";
-        minDrum.scrollToValue(customMin, false);
-      }
-      if (secDrum && secDrum.track) {
-        secDrum.track.style.display = "none"; secDrum.track.offsetHeight; secDrum.track.style.display = "";
-        secDrum.scrollToValue(customSec, false);
-      }
-    } catch(e) {}
+    tryInitDrums();
+    initPresetUI();
+    updatePresetSlotWidths();
+    renderClock();
+    updateUI();
+    // Safari: kényszerített repaint a drum track-ekre (bfcache restore után)
+    if (minDrum && minDrum.track) {
+      minDrum.scrollToValue(customMin, false);
+    }
+    if (secDrum && secDrum.track) {
+      secDrum.scrollToValue(customSec, false);
+    }
   }
   window.addEventListener("load", fullRedraw);
   window.addEventListener("pageshow", (e) => { if (e.persisted) fullRedraw(); });
-  setTimeout(fullRedraw, 200);
-  setTimeout(fullRedraw, 800);
-  setTimeout(fullRedraw, 1500);
 
   // ── Preset slots ──
   let presets = Array(10).fill(null);
@@ -338,36 +325,29 @@ html, body {
 
   // ── localStorage ──
   function savePreset() {
-    try {
-      localStorage.setItem("stopper_min", customMin);
-      localStorage.setItem("stopper_sec", customSec);
-    } catch(e) {}
+    localStorage.setItem("stopper_min", customMin);
+    localStorage.setItem("stopper_sec", customSec);
   }
 
   function loadPreset() {
-    try {
-      const m = parseInt(localStorage.getItem("stopper_min"), 10);
-      const s = parseInt(localStorage.getItem("stopper_sec"), 10);
-      if (!isNaN(m) && m >= 0 && m <= 60) customMin = m;
-      if (!isNaN(s) && s >= 0 && s < 60) customSec = s;
-    } catch(e) {}
+    const m = parseInt(localStorage.getItem("stopper_min"), 10);
+    const s = parseInt(localStorage.getItem("stopper_sec"), 10);
+    if (!isNaN(m) && m >= 0 && m <= 60) customMin = m;
+    if (!isNaN(s) && s >= 0 && s < 60) customSec = s;
   }
 
   function loadPresets() {
-    try {
-      const saved = JSON.parse(localStorage.getItem("stopper_presets"));
-      if (Array.isArray(saved) && saved.length === 10) {
-        presets = saved;
-        return;
-      }
-    } catch(e) {}
-    // Defaults: 1:00 és 1:30
+    const saved = JSON.parse(localStorage.getItem("stopper_presets"));
+    if (Array.isArray(saved) && saved.length === 10) {
+      presets = saved;
+      return;
+    }
     presets[0] = { min: 1, sec: 0 };
     presets[1] = { min: 1, sec: 30 };
   }
 
   function savePresets() {
-    try { localStorage.setItem("stopper_presets", JSON.stringify(presets)); } catch(e) {}
+    localStorage.setItem("stopper_presets", JSON.stringify(presets));
   }
 
   function presetLabel(p) {
@@ -412,13 +392,7 @@ html, body {
       scroll.appendChild(btn);
     }
 
-    // Slot szélesség ResizeObserver-rel (try-catch Brave kompatibilitáshoz)
-    if (typeof ResizeObserver !== "undefined") {
-      try { new ResizeObserver(updatePresetSlotWidths).observe(scroll); } catch(e) { updatePresetSlotWidths(); }
-    } else {
-      updatePresetSlotWidths();
-      window.addEventListener("resize", updatePresetSlotWidths);
-    }
+    new ResizeObserver(updatePresetSlotWidths).observe(scroll);
 
     btnSave.addEventListener("click", () => {
       presets[presetCursorIdx] = { min: customMin, sec: customSec };
@@ -442,10 +416,10 @@ html, body {
     themeBtn.textContent = dark ? "Világos" : "Sötét";
     themeBtn.setAttribute("aria-label", dark ? "Téma váltása világosra" : "Téma váltása sötétre");
     themeBtn.setAttribute("aria-pressed", dark ? "true" : "false");
-    try { localStorage.setItem("stopper_theme", dark ? "dark" : "light"); } catch(e) {}
+    localStorage.setItem("stopper_theme", dark ? "dark" : "light");
     applyPalette(currentPalette);
   }
-  if (themeBtn) themeBtn.addEventListener("click", () => setTheme(!isDark));
+  themeBtn.addEventListener("click", () => setTheme(!isDark));
 
   // ── Clock ──
   function getClockSize() {
@@ -457,10 +431,6 @@ html, body {
     }
     const vp = window.visualViewport || { width: window.innerWidth, height: window.innerHeight };
     return Math.max(80, Math.min(vp.width - 32, vp.height - 220));
-  }
-
-  function getCSS(v) {
-    return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   }
 
   function renderClock() {
@@ -520,66 +490,64 @@ html, body {
   let pointerDownTime = 0;
   let pointerMoved = false;
 
-  try {
-    clockWrap.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      try { clockWrap.setPointerCapture(e.pointerId); } catch(_) {}
-      pointerDownTime = Date.now();
-      pointerMoved = false;
-      dragActive = false;
+  clockWrap.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    clockWrap.setPointerCapture(e.pointerId);
+    pointerDownTime = Date.now();
+    pointerMoved = false;
+    dragActive = false;
 
-      const rect = clockWrap.getBoundingClientRect();
-      const sz = getClockSize();
-      const r = sz / 2 - STROKE_W - KNOB_R - 2;
-      const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
-      const px = e.clientX, py = e.clientY;
+    const rect = clockWrap.getBoundingClientRect();
+    const sz = getClockSize();
+    const r = sz / 2 - STROKE_W - KNOB_R - 2;
+    const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
+    const px = e.clientX, py = e.clientY;
 
-      if (Math.hypot(px - cxS, py - cyS) > r + STROKE_W / 2) return;
+    if (Math.hypot(px - cxS, py - cyS) > r + STROKE_W / 2) return;
 
-      const frac = totalSec > 0 ? timeLeft / totalSec : 0;
-      const endRad = ((-90 + frac * 360) * Math.PI) / 180;
-      const kx = cxS + r * Math.cos(endRad);
-      const ky = cyS + r * Math.sin(endRad);
+    const frac = totalSec > 0 ? timeLeft / totalSec : 0;
+    const endRad = ((-90 + frac * 360) * Math.PI) / 180;
+    const kx = cxS + r * Math.cos(endRad);
+    const ky = cyS + r * Math.sin(endRad);
 
-      if (Math.hypot(px - kx, py - ky) < 36 && state !== "finished") {
-        dragTimeout = setTimeout(() => {
-          if (pointerMoved) {
-            dragActive = true;
-            if (state === "running") stopTimer();
-          }
-        }, 200);
-      }
-    });
+    if (Math.hypot(px - kx, py - ky) < 36 && state !== "finished") {
+      dragTimeout = setTimeout(() => {
+        if (pointerMoved) {
+          dragActive = true;
+          if (state === "running") stopTimer();
+        }
+      }, 200);
+    }
+  });
 
-    clockWrap.addEventListener("pointermove", (e) => {
-      pointerMoved = true;
-      if (!dragActive) return;
-      e.preventDefault();
-      const rect = clockWrap.getBoundingClientRect();
-      const sz = getClockSize();
-      const r = sz / 2 - STROKE_W - KNOB_R - 2;
-      const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
-      let deg = Math.atan2(e.clientY - cyS, e.clientX - cxS) * (180 / Math.PI) + 90;
-      if (deg < 0) deg += 360;
-      timeLeft = Math.max(1, Math.min(totalSec, Math.round((deg / 360) * totalSec)));
-      renderClock();
-    });
+  clockWrap.addEventListener("pointermove", (e) => {
+    pointerMoved = true;
+    if (!dragActive) return;
+    e.preventDefault();
+    const rect = clockWrap.getBoundingClientRect();
+    const sz = getClockSize();
+    const r = sz / 2 - STROKE_W - KNOB_R - 2;
+    const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
+    let deg = Math.atan2(e.clientY - cyS, e.clientX - cxS) * (180 / Math.PI) + 90;
+    if (deg < 0) deg += 360;
+    timeLeft = Math.max(1, Math.min(totalSec, Math.round((deg / 360) * totalSec)));
+    renderClock();
+  });
 
-    clockWrap.addEventListener("pointerup", (e) => {
-      if (dragTimeout) { clearTimeout(dragTimeout); dragTimeout = null; }
-      if (dragActive) { dragActive = false; return; }
-      if (pointerMoved && Date.now() - pointerDownTime > 300) return;
+  clockWrap.addEventListener("pointerup", (e) => {
+    if (dragTimeout) { clearTimeout(dragTimeout); dragTimeout = null; }
+    if (dragActive) { dragActive = false; return; }
+    if (pointerMoved && Date.now() - pointerDownTime > 300) return;
 
-      const rect = clockWrap.getBoundingClientRect();
-      const sz = getClockSize();
-      const r = sz / 2 - STROKE_W - KNOB_R - 2;
-      const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
-      if (Math.hypot(e.clientX - cxS, e.clientY - cyS) > r + STROKE_W / 2) return;
+    const rect = clockWrap.getBoundingClientRect();
+    const sz = getClockSize();
+    const r = sz / 2 - STROKE_W - KNOB_R - 2;
+    const cxS = rect.left + sz / 2, cyS = rect.top + sz / 2;
+    if (Math.hypot(e.clientX - cxS, e.clientY - cyS) > r + STROKE_W / 2) return;
 
-      if (state === "running") stopTimer();
-      else if (state === "idle" || state === "paused") { unlockTTS(); startTimer(); }
-    });
-  } catch(_) {}
+    if (state === "running") stopTimer();
+    else if (state === "idle" || state === "paused") { unlockTTS(); startTimer(); }
+  });
 
   // ── Timer (drift-compensated via performance.now()) ──
   function startTimer() {
@@ -726,11 +694,11 @@ html, body {
   }
 
   // ── Buttons ──
-  if (btnStop) btnStop.addEventListener("click", () => {
+  btnStop.addEventListener("click", () => {
     if (state === "running") stopTimer();
     else if (state === "paused" || state === "finished") resetToIdle();
   });
-  if (btnStart) btnStart.addEventListener("click", () => {
+  btnStart.addEventListener("click", () => {
     if (state === "idle" || state === "paused") { unlockTTS(); startTimer(); }
   });
 
@@ -774,60 +742,31 @@ html, body {
     _indexFromOffset() { return Math.round((SEL_OFFSET_BASE - this.offset) / ITEM_H); }
 
     build() {
-      while (this.el.firstChild) this.el.removeChild(this.el.firstChild);
+      this.el.innerHTML = "";
       const sel = document.createElement("div"); sel.className = "drum-sel"; this.el.appendChild(sel);
       this.track = document.createElement("div"); this.track.className = "drum-track";
-      const frag = document.createDocumentFragment();
       for (let i = 0; i < this.totalItems; i++) {
         const d = document.createElement("div"); d.className = "drum-item";
         d.textContent = String(i % this.count).padStart(2, "0");
-        frag.appendChild(d);
+        this.track.appendChild(d);
       }
-      this.track.appendChild(frag);
       this.el.appendChild(this.track);
       const ft = document.createElement("div"); ft.className = "drum-fade-top";
       const fb = document.createElement("div"); fb.className = "drum-fade-bottom";
       this.el.appendChild(ft); this.el.appendChild(fb);
-      // Brave: kényszerített repaint
-      this.el.offsetHeight;
     }
 
     bind() {
-      // Pointer events (desktop + modern mobile)
-      try {
-        this.el.addEventListener("pointerdown", (e) => this.onDown(e));
-        this.el.addEventListener("pointermove", (e) => this.onMove(e));
-        this.el.addEventListener("pointerup", () => this.onUp());
-        this.el.addEventListener("pointercancel", () => this.onUp());
-      } catch(_) {}
-      // Touch events párhuzamosan (Brave kompatibilitás – pointer events regisztrálhatók de nem tüzelnek)
-      try {
-        this.el.addEventListener("touchstart", (ev) => {
-          if (this.isDragging) return; // pointer event már kezeli
-          const t = ev.touches[0]; if (!t) return;
-          this._touchActive = true;
-          this.isDragging = true; this.lastY = t.clientY;
-          this.lastTime = Date.now(); this.velocity = 0;
-          if (this.animFrame) { cancelAnimationFrame(this.animFrame); this.animFrame = null; }
-        }, { passive: true });
-        this.el.addEventListener("touchmove", (ev) => {
-          if (!this._touchActive || !this.isDragging) return;
-          const t = ev.touches[0]; if (!t) return;
-          ev.preventDefault();
-          const now = Date.now(); const dy = t.clientY - this.lastY;
-          const dt = now - this.lastTime; if (dt > 0) this.velocity = dy / dt;
-          this.lastY = t.clientY; this.lastTime = now;
-          this.offset += dy; this._normalize(); this._renderItems(); this._emitValue();
-        }, { passive: false });
-        this.el.addEventListener("touchend", () => { this._touchActive = false; this.onUp(); }, { passive: true });
-        this.el.addEventListener("touchcancel", () => { this._touchActive = false; this.onUp(); }, { passive: true });
-      } catch(_) {}
+      this.el.addEventListener("pointerdown", (e) => this.onDown(e));
+      this.el.addEventListener("pointermove", (e) => this.onMove(e));
+      this.el.addEventListener("pointerup", () => this.onUp());
+      this.el.addEventListener("pointercancel", () => this.onUp());
     }
 
     onDown(e) {
       if (state === "running") return;
-      try { e.preventDefault(); } catch(_) {}
-      try { this.el.setPointerCapture(e.pointerId); } catch(_) {}
+      e.preventDefault();
+      this.el.setPointerCapture(e.pointerId);
       this.isDragging = true;
       this.lastY = e.clientY;
       this.lastTime = Date.now();
@@ -902,9 +841,7 @@ html, body {
     }
 
     _renderItems() {
-      const tx = `translate3d(0,${this.offset}px,0)`;
-      this.track.style.webkitTransform = tx;
-      this.track.style.transform = tx;
+      this.track.style.transform = `translateY(${this.offset}px)`;
       const ch = this.track.children;
       for (let i = 0; i < ch.length; i++) {
         const itemCY = this.offset + i * ITEM_H + ITEM_H / 2;
@@ -915,9 +852,7 @@ html, body {
         else if (slots < 2.5) { op = 0.22; sc = 1; }
         else { op = 0.07; sc = 1; }
         ch[i].style.opacity = op;
-        const stx = `scale(${sc}) translateZ(0)`;
-        ch[i].style.webkitTransform = stx;
-        ch[i].style.transform = stx;
+        ch[i].style.transform = `scale(${sc})`;
       }
     }
 
@@ -944,42 +879,21 @@ html, body {
   }
 
   // ── Create drums ──
-  try {
-    minDrum = new Drum(drumMinEl, 61, (val) => {
-      customMin = val; applyDrumValues();
-    }, (finalVal) => {
-      if (finalVal === 60 && customSec !== 0) {
-        customSec = 0; if (secDrum) secDrum.scrollToValue(0, true); applyDrumValues();
-      }
-      updateUI();
-    });
-  } catch(_) {}
-  try {
-    secDrum = new Drum(drumSecEl, 60, (val) => {
-      customSec = val; applyDrumValues();
-    });
-  } catch(_) {}
+  minDrum = new Drum(drumMinEl, 61, (val) => {
+    customMin = val; applyDrumValues();
+  }, (finalVal) => {
+    if (finalVal === 60 && customSec !== 0) {
+      customSec = 0; if (secDrum) secDrum.scrollToValue(0, true); applyDrumValues();
+    }
+    updateUI();
+  });
+  secDrum = new Drum(drumSecEl, 60, (val) => {
+    customSec = val; applyDrumValues();
+  });
 
-  // ── Drum újraépítés ha az init sikertelen volt ──
   function tryInitDrums() {
-    if (!minDrum && drumMinEl) {
-      try {
-        minDrum = new Drum(drumMinEl, 61,
-          (val) => { customMin = val; applyDrumValues(); },
-          (finalVal) => {
-            if (finalVal === 60 && customSec !== 0) {
-              customSec = 0; if (secDrum) secDrum.scrollToValue(0, true); applyDrumValues();
-            }
-            updateUI();
-          }
-        );
-      } catch(_) {}
-    }
-    if (!secDrum && drumSecEl) {
-      try { secDrum = new Drum(drumSecEl, 60, (val) => { customSec = val; applyDrumValues(); }); } catch(_) {}
-    }
-    try { if (minDrum) minDrum.scrollToValue(customMin, false); } catch(_) {}
-    try { if (secDrum) secDrum.scrollToValue(customSec, false); } catch(_) {}
+    if (minDrum) minDrum.scrollToValue(customMin, false);
+    if (secDrum) secDrum.scrollToValue(customSec, false);
   }
 
   function applyDrumValues() {
@@ -997,51 +911,35 @@ html, body {
   }
 
   // ── Swatch click handlers ──
-  document.getElementById("swatchPurple")?.addEventListener("click", () => applyPalette("purple"));
-  document.getElementById("swatchGreen")?.addEventListener("click", () => applyPalette("green"));
+  document.getElementById("swatchPurple").addEventListener("click", () => applyPalette("purple"));
+  document.getElementById("swatchGreen").addEventListener("click", () => applyPalette("green"));
 
   // ── Init ──
-  // Load saved theme
-  try {
-    if (localStorage.getItem("stopper_theme") === "dark") isDark = true;
-  } catch(e) {}
+  if (localStorage.getItem("stopper_theme") === "dark") isDark = true;
 
-  // Load saved palette
-  try {
-    const p = localStorage.getItem("stopper_palette");
-    if (p === "purple" || p === "green") currentPalette = p;
-  } catch(e) {}
+  const savedPalette = localStorage.getItem("stopper_palette");
+  if (savedPalette === "purple" || savedPalette === "green") currentPalette = savedPalette;
 
-  // Load saved preset
   loadPreset();
   loadPresets();
 
-  // Apply initial values
   const initSec = Math.max(1, Math.min(3600, customMin * 60 + customSec));
   totalSec = initSec; timeLeft = initSec;
 
-  try { if (minDrum) minDrum.scrollToValue(customMin, false); } catch(e) {}
-  try { if (secDrum) secDrum.scrollToValue(customSec, false); } catch(e) {}
-  try { setTheme(isDark); } catch(e) {}
-  try { initPresetUI(); } catch(e) {}
-  try { updateUI(); } catch(e) {}
+  minDrum.scrollToValue(customMin, false);
+  secDrum.scrollToValue(customSec, false);
+  setTheme(isDark);
+  initPresetUI();
+  updateUI();
 
-  // Azonnali retry a clock-ra
-  requestAnimationFrame(() => { try { renderClock(); } catch(e) {} });
-
-  // Clock újrarenderelés méretre – ResizeObserver a clock-area-n
+  // Clock újrarenderelés méretre
   const clockArea = document.querySelector(".clock-area");
   let resizeRaf = null;
   function onResize() {
     if (resizeRaf) return;
-    resizeRaf = requestAnimationFrame(() => { resizeRaf = null; try { renderClock(); } catch(e) {} });
+    resizeRaf = requestAnimationFrame(() => { resizeRaf = null; renderClock(); });
   }
-  if (clockArea && typeof ResizeObserver !== "undefined") {
-    try { new ResizeObserver(onResize).observe(clockArea); } catch(e) { window.addEventListener("resize", onResize); }
-  } else {
-    window.addEventListener("resize", onResize);
-    if (window.visualViewport) window.visualViewport.addEventListener("resize", onResize);
-  }
+  new ResizeObserver(onResize).observe(clockArea);
 
   // ── Service Worker registration ──
   if ("serviceWorker" in navigator) {
