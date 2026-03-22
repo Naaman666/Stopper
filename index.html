@@ -567,14 +567,14 @@ html, body {
     if (dragTimeout) { clearTimeout(dragTimeout); dragTimeout = null; }
     if (dragActive) {
       dragActive = false;
-      // Az átállított idő legyen az új indulási idő
-      totalSec = timeLeft;
+      // Drumok szinkronizálása a húzott értékre
       customMin = Math.floor(timeLeft / 60);
       customSec = timeLeft % 60;
       minDrum.scrollToValue(customMin, true);
       secDrum.scrollToValue(customSec, true);
       savePreset();
-      updateUI();
+      renderClock();
+      renderPresets();
       return;
     }
     if (pointerMoved && Date.now() - pointerDownTime > 300) return;
@@ -592,7 +592,7 @@ html, body {
   // ── Timer (drift-compensated via performance.now()) ──
   function startTimer() {
     if (totalSec < 1) return;
-    if (state === "idle") { timeLeft = totalSec; lastSpoken = -1; }
+    if (state === "idle") { lastSpoken = -1; }
     state = "running";
     timerStartAt = performance.now();
     timerStartLeft = timeLeft;
