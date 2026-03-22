@@ -138,33 +138,44 @@ html, body {
 .btn:disabled { opacity: 0.45; cursor: default; }
 #btnStop { background: var(--btn-stop-bg); }
 #btnStart { background: var(--btn-start-bg); }
-.preset-row { display: flex; gap: 10px; align-items: center; }
+.preset-row { display: flex; gap: 8px; align-items: stretch; }
 .preset-save-btn {
-  flex-shrink: 0; width: 60px; height: 38px;
-  border-radius: 10px; border: none;
+  flex-shrink: 0; width: 60px;
+  border-radius: 14px; border: none;
   font-size: 0.75rem; font-weight: 700; cursor: pointer;
   background: var(--save-clr); color: #fff;
   transition: background 0.15s, opacity 0.15s;
 }
+.preset-save-btn.load-mode { background: var(--arc-normal); }
 .preset-save-btn:active:not(:disabled) { opacity: 0.7; }
 .preset-save-btn:disabled { opacity: 0.45; cursor: default; }
-.preset-scroll {
-  flex: 1; display: flex; gap: 8px;
-  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+.preset-drum-wrap {
+  flex: 1; height: 130px; position: relative; overflow: hidden;
+  background: var(--drum-bg); border-radius: 14px;
+  touch-action: none;
+  transition: opacity 0.2s;
 }
-.preset-scroll::-webkit-scrollbar { display: none; }
-.preset-slot {
-  flex-shrink: 0; /* width JS-sel van beállítva */ height: 38px;
-  border-radius: 10px; border: 2px solid transparent;
-  font-size: 0.82rem; font-weight: 700; cursor: pointer;
-  background: var(--dur-inactive-bg); color: var(--drum-item);
-  transition: background 0.2s, color 0.2s, opacity 0.15s, border-color 0.2s;
+.preset-drum-wrap.locked { opacity: 0.32; pointer-events: none; }
+.preset-drum-track {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center;
+  will-change: transform;
 }
-.preset-slot.cursor { border-color: var(--save-clr); background: var(--save-clr-light); color: var(--save-clr); }
-.preset-slot.active { background: var(--dur-active-bg); color: var(--text-inv); border-color: transparent; }
-.preset-slot.cursor.active { border-color: var(--save-clr); }
-.preset-slot.empty { opacity: 0.4; }
-.preset-slot:disabled { opacity: 0.45; cursor: default; }
+.preset-drum-item {
+  width: 90px; height: 50px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; font-weight: 700; color: var(--drum-item);
+  will-change: transform, opacity;
+}
+.preset-drum-sel {
+  position: absolute; top: 10px; bottom: 10px; width: 90px;
+  left: 50%; transform: translateX(-50%);
+  border-radius: 10px; background: var(--drum-sel); pointer-events: none;
+}
+.preset-drum-fade-left, .preset-drum-fade-right {
+  position: absolute; top: 0; bottom: 0; width: 60px; pointer-events: none; z-index: 2;
+}
+.preset-drum-fade-left { left: 0; background: linear-gradient(to right, var(--drum-bg), transparent); }
+.preset-drum-fade-right { right: 0; background: linear-gradient(to left, var(--drum-bg), transparent); }
 .drums-row {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
   margin-top: 2px;
@@ -217,7 +228,12 @@ html, body {
     </div>
     <div class="preset-row">
       <button class="preset-save-btn" id="btnSavePreset" aria-label="Mentés az aktív helyre">Save</button>
-      <div class="preset-scroll" id="presetScroll" role="listbox" aria-label="Előbeállított idők"></div>
+      <div class="preset-drum-wrap" id="presetDrum" role="listbox" aria-label="Előbeállított idők">
+        <div class="preset-drum-sel"></div>
+        <div class="preset-drum-track" id="presetTrack"></div>
+        <div class="preset-drum-fade-left"></div>
+        <div class="preset-drum-fade-right"></div>
+      </div>
     </div>
     <div class="drums-row">
       <div class="drum-col">
@@ -323,27 +339,13 @@ html, body {
   const drumSecEl = document.getElementById("drumSec");
   let minDrum = null, secDrum = null;
 
-  function updatePresetSlotWidths() {
-    const scroll = document.getElementById("presetScroll");
-    if (!scroll) return;
-    const GAP = 8;
-    const w = Math.floor((scroll.clientWidth - GAP * 2) / 3);
-    if (w <= 0) { setTimeout(updatePresetSlotWidths, 200); return; }
-    scroll.querySelectorAll(".preset-slot").forEach(s => { s.style.width = w + "px"; });
-  }
   function fullRedraw() {
     tryInitDrums();
     initPresetUI();
-    updatePresetSlotWidths();
     renderClock();
     updateUI();
-    // Safari: kényszerített repaint a drum track-ekre (bfcache restore után)
-    if (minDrum && minDrum.track) {
-      minDrum.scrollToValue(customMin, false);
-    }
-    if (secDrum && secDrum.track) {
-      secDrum.scrollToValue(customSec, false);
-    }
+    if (minDrum && minDrum.track) minDrum.scrollToValue(customMin, false);
+    if (secDrum && secDrum.track) secDrum.scrollToValue(customSec, false);
   }
   window.addEventListener("load", fullRedraw);
   window.addEventListener("pageshow", (e) => { if (e.persisted) fullRedraw(); });
@@ -386,52 +388,213 @@ html, body {
 
   const P_COUNT = 10;
 
-  function renderPresets() {
-    const scroll = document.getElementById("presetScroll");
-    if (!scroll) return;
-    scroll.querySelectorAll(".preset-slot").forEach((slot, i) => {
-      const p = presets[i];
-      slot.textContent = presetLabel(p);
-      slot.classList.toggle("cursor", i === presetCursorIdx);
-      slot.classList.toggle("active", !!p && totalSec === p.min * 60 + p.sec);
-      slot.classList.toggle("empty", !p);
-      slot.disabled = state === "running";
-    });
+  // ── Preset Drum (vízszintes dobtárcsa) ──
+  const PRESET_ITEM_W = 90;
+  let presetDrumOffset = 0;
+  let presetDrumVel = 0;
+  let presetDrumDragging = false;
+  let presetDrumLastX = 0;
+  let presetDrumLastTime = 0;
+  let presetDrumAnim = null;
+  let presetDrumInited = false;
+
+  function presetDrumCenterForIndex(idx) {
+    const wrap = document.getElementById("presetDrum");
+    if (!wrap) return 0;
+    const wrapW = wrap.clientWidth;
+    return wrapW / 2 - idx * PRESET_ITEM_W - PRESET_ITEM_W / 2;
+  }
+
+  function presetDrumCurrentIdx() {
+    const wrap = document.getElementById("presetDrum");
+    if (!wrap) return 0;
+    const wrapW = wrap.clientWidth;
+    const center = wrapW / 2;
+    const idx = Math.round((center - presetDrumOffset - PRESET_ITEM_W / 2) / PRESET_ITEM_W);
+    return Math.max(0, Math.min(P_COUNT - 1, idx));
+  }
+
+  function renderPresetDrum() {
+    const track = document.getElementById("presetTrack");
+    if (!track) return;
+    const items = track.children;
+    const wrap = document.getElementById("presetDrum");
+    if (!wrap) return;
+    const wrapW = wrap.clientWidth;
+    const center = wrapW / 2;
+
+    track.style.transform = `translateX(${presetDrumOffset}px)`;
+
+    for (let i = 0; i < items.length; i++) {
+      const itemCX = presetDrumOffset + i * PRESET_ITEM_W + PRESET_ITEM_W / 2;
+      const dist = Math.abs(itemCX - center) / PRESET_ITEM_W;
+      let op, sc;
+      if (dist < 0.5) { op = 1; sc = 1.18; }
+      else if (dist < 1.5) { op = 0.55; sc = 1; }
+      else if (dist < 2.5) { op = 0.22; sc = 1; }
+      else { op = 0.07; sc = 1; }
+      items[i].style.opacity = op;
+      items[i].style.transform = `scale(${sc})`;
+    }
+
+    // Frissítjük a cursor indexet és a Save/Load gombot
+    presetCursorIdx = presetDrumCurrentIdx();
+    updateSaveLoadBtn();
+  }
+
+  function updateSaveLoadBtn() {
     const btnSave = document.getElementById("btnSavePreset");
-    if (btnSave) btnSave.disabled = state === "running";
+    if (!btnSave) return;
+    btnSave.disabled = state === "running";
+    const p = presets[presetCursorIdx];
+    if (p && totalSec === p.min * 60 + p.sec) {
+      btnSave.textContent = "Load";
+      btnSave.classList.add("load-mode");
+    } else {
+      btnSave.textContent = "Save";
+      btnSave.classList.remove("load-mode");
+    }
+  }
+
+  function presetDrumSnap() {
+    const idx = presetDrumCurrentIdx();
+    const target = presetDrumCenterForIndex(idx);
+    const animate = () => {
+      const delta = target - presetDrumOffset;
+      if (Math.abs(delta) < 0.5) {
+        presetDrumOffset = target;
+        renderPresetDrum();
+        return;
+      }
+      presetDrumOffset += delta * 0.28;
+      renderPresetDrum();
+      presetDrumAnim = requestAnimationFrame(animate);
+    };
+    presetDrumAnim = requestAnimationFrame(animate);
+  }
+
+  function presetDrumScrollTo(idx, animated) {
+    if (presetDrumAnim) { cancelAnimationFrame(presetDrumAnim); presetDrumAnim = null; }
+    const target = presetDrumCenterForIndex(idx);
+    if (!animated) {
+      presetDrumOffset = target;
+      renderPresetDrum();
+      return;
+    }
+    const animate = () => {
+      const delta = target - presetDrumOffset;
+      if (Math.abs(delta) < 0.5) {
+        presetDrumOffset = target;
+        renderPresetDrum();
+        return;
+      }
+      presetDrumOffset += delta * 0.28;
+      renderPresetDrum();
+      presetDrumAnim = requestAnimationFrame(animate);
+    };
+    presetDrumAnim = requestAnimationFrame(animate);
+  }
+
+  function renderPresets() {
+    // Frissíti az item-ek szövegét
+    const track = document.getElementById("presetTrack");
+    if (!track) return;
+    const items = track.children;
+    for (let i = 0; i < items.length; i++) {
+      items[i].textContent = presetLabel(presets[i]);
+    }
+    renderPresetDrum();
   }
 
   function initPresetUI() {
-    const scroll = document.getElementById("presetScroll");
+    const wrap = document.getElementById("presetDrum");
+    const track = document.getElementById("presetTrack");
     const btnSave = document.getElementById("btnSavePreset");
-    if (!scroll || !btnSave) return;
-    // Idempotent: ha már van slot, csak frissíti
-    if (scroll.querySelector(".preset-slot")) { renderPresets(); return; }
+    if (!wrap || !track || !btnSave) return;
 
+    if (presetDrumInited) { renderPresets(); return; }
+    presetDrumInited = true;
+
+    // Itemek létrehozása
     for (let i = 0; i < P_COUNT; i++) {
-      const btn = document.createElement("button");
-      btn.className = "preset-slot";
-      btn.setAttribute("role", "option");
-      btn.addEventListener("click", () => {
-        presetCursorIdx = i;
-        const p = presets[i];
-        if (p) setDuration(p.min * 60 + p.sec);
-        renderPresets();
-      });
-      scroll.appendChild(btn);
+      const item = document.createElement("div");
+      item.className = "preset-drum-item";
+      item.textContent = presetLabel(presets[i]);
+      track.appendChild(item);
     }
 
-    new ResizeObserver(updatePresetSlotWidths).observe(scroll);
+    // Középre pozícionálás
+    presetDrumOffset = presetDrumCenterForIndex(presetCursorIdx);
+    renderPresetDrum();
 
-    btnSave.addEventListener("click", () => {
-      presets[presetCursorIdx] = { min: customMin, sec: customSec };
-      savePresets();
-      renderPresets();
-      btnSave.textContent = "OK!";
-      setTimeout(() => { btnSave.textContent = "Save"; }, 800);
+    // Pointer events – vízszintes drag
+    wrap.addEventListener("pointerdown", (e) => {
+      if (state === "running") return;
+      e.preventDefault();
+      wrap.setPointerCapture(e.pointerId);
+      presetDrumDragging = true;
+      presetDrumLastX = e.clientX;
+      presetDrumLastTime = Date.now();
+      presetDrumVel = 0;
+      if (presetDrumAnim) { cancelAnimationFrame(presetDrumAnim); presetDrumAnim = null; }
     });
 
-    renderPresets();
+    wrap.addEventListener("pointermove", (e) => {
+      if (!presetDrumDragging) return;
+      e.preventDefault();
+      const now = Date.now();
+      const dx = e.clientX - presetDrumLastX;
+      const dt = now - presetDrumLastTime;
+      if (dt > 0) presetDrumVel = dx / dt;
+      presetDrumLastX = e.clientX;
+      presetDrumLastTime = now;
+      presetDrumOffset += dx;
+      // Clamp a szélekhez
+      const minOff = presetDrumCenterForIndex(P_COUNT - 1);
+      const maxOff = presetDrumCenterForIndex(0);
+      presetDrumOffset = Math.max(minOff - PRESET_ITEM_W, Math.min(maxOff + PRESET_ITEM_W, presetDrumOffset));
+      renderPresetDrum();
+    });
+
+    const onUp = () => {
+      if (!presetDrumDragging) return;
+      presetDrumDragging = false;
+      // Inertia
+      let vel = presetDrumVel * 80;
+      const minOff = presetDrumCenterForIndex(P_COUNT - 1);
+      const maxOff = presetDrumCenterForIndex(0);
+      const step = () => {
+        vel *= 0.88;
+        if (Math.abs(vel) < 0.4) { presetDrumSnap(); return; }
+        presetDrumOffset += vel;
+        presetDrumOffset = Math.max(minOff - PRESET_ITEM_W / 2, Math.min(maxOff + PRESET_ITEM_W / 2, presetDrumOffset));
+        renderPresetDrum();
+        presetDrumAnim = requestAnimationFrame(step);
+      };
+      presetDrumAnim = requestAnimationFrame(step);
+    };
+    wrap.addEventListener("pointerup", onUp);
+    wrap.addEventListener("pointercancel", onUp);
+
+    // Save/Load gomb
+    btnSave.addEventListener("click", () => {
+      const p = presets[presetCursorIdx];
+      if (p && totalSec === p.min * 60 + p.sec) {
+        // Load mód: betöltjük a preset értékét
+        setDuration(p.min * 60 + p.sec);
+      } else {
+        // Save mód: mentjük az aktuális értéket
+        presets[presetCursorIdx] = { min: customMin, sec: customSec };
+        savePresets();
+      }
+      renderPresets();
+    });
+
+    // Resize observer a wrap-re
+    new ResizeObserver(() => {
+      presetDrumOffset = presetDrumCenterForIndex(presetCursorIdx);
+      renderPresetDrum();
+    }).observe(wrap);
   }
 
   // ── Theme ──
@@ -746,6 +909,9 @@ html, body {
         btnStart.setAttribute("aria-label", "Indítás"); break;
     }
     renderPresets();
+
+    const presetWrap = document.getElementById("presetDrum");
+    if (presetWrap) presetWrap.classList.toggle("locked", state === "running");
 
     const drumLocked = state === "running";
     drumMinEl.classList.toggle("locked", drumLocked);
