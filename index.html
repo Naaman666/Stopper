@@ -281,7 +281,7 @@ html, body {
 
   const STROKE_W = 11;
   const KNOB_R = 9;
-  const DRUM_REPS = 9;
+  const DRUM_REPS = 5;
   const ITEM_H = 50;
   const FRICTION = 0.88;
   const MIN_VEL = 0.4;
@@ -314,10 +314,16 @@ html, body {
     try { updatePresetSlotWidths(); } catch(e) {}
     try { renderClock(); } catch(e) {}
     try { updateUI(); } catch(e) {}
-    // Safari: kényszerített repaint a drum track-ekre
+    // Kényszerített repaint a drum track-ekre (Safari + Brave)
     try {
-      if (minDrum && minDrum.track) { minDrum.track.style.display = "none"; minDrum.track.offsetHeight; minDrum.track.style.display = ""; }
-      if (secDrum && secDrum.track) { secDrum.track.style.display = "none"; secDrum.track.offsetHeight; secDrum.track.style.display = ""; }
+      if (minDrum && minDrum.track) {
+        minDrum.track.style.display = "none"; minDrum.track.offsetHeight; minDrum.track.style.display = "";
+        minDrum.scrollToValue(customMin, false);
+      }
+      if (secDrum && secDrum.track) {
+        secDrum.track.style.display = "none"; secDrum.track.offsetHeight; secDrum.track.style.display = "";
+        secDrum.scrollToValue(customSec, false);
+      }
     } catch(e) {}
   }
   window.addEventListener("load", fullRedraw);
@@ -768,49 +774,54 @@ html, body {
     _indexFromOffset() { return Math.round((SEL_OFFSET_BASE - this.offset) / ITEM_H); }
 
     build() {
-      this.el.innerHTML = "";
+      while (this.el.firstChild) this.el.removeChild(this.el.firstChild);
       const sel = document.createElement("div"); sel.className = "drum-sel"; this.el.appendChild(sel);
       this.track = document.createElement("div"); this.track.className = "drum-track";
+      const frag = document.createDocumentFragment();
       for (let i = 0; i < this.totalItems; i++) {
         const d = document.createElement("div"); d.className = "drum-item";
         d.textContent = String(i % this.count).padStart(2, "0");
-        this.track.appendChild(d);
+        frag.appendChild(d);
       }
+      this.track.appendChild(frag);
       this.el.appendChild(this.track);
       const ft = document.createElement("div"); ft.className = "drum-fade-top";
       const fb = document.createElement("div"); fb.className = "drum-fade-bottom";
       this.el.appendChild(ft); this.el.appendChild(fb);
+      // Brave: kényszerített repaint
+      this.el.offsetHeight;
     }
 
     bind() {
+      // Pointer events (desktop + modern mobile)
       try {
         this.el.addEventListener("pointerdown", (e) => this.onDown(e));
         this.el.addEventListener("pointermove", (e) => this.onMove(e));
         this.el.addEventListener("pointerup", () => this.onUp());
         this.el.addEventListener("pointercancel", () => this.onUp());
-      } catch(_) {
-        try {
-          // Touch fallback ha Brave blokkolja a pointer event-eket
-          this.el.addEventListener("touchstart", (ev) => {
-            const t = ev.touches[0]; if (!t) return;
-            try { ev.preventDefault(); } catch(_2) {}
-            this.isDragging = true; this.lastY = t.clientY;
-            this.lastTime = Date.now(); this.velocity = 0;
-            if (this.animFrame) { cancelAnimationFrame(this.animFrame); this.animFrame = null; }
-          }, { passive: false });
-          this.el.addEventListener("touchmove", (ev) => {
-            if (!this.isDragging) return;
-            const t = ev.touches[0]; if (!t) return;
-            try { ev.preventDefault(); } catch(_2) {}
-            const now = Date.now(); const dy = t.clientY - this.lastY;
-            const dt = now - this.lastTime; if (dt > 0) this.velocity = dy / dt;
-            this.lastY = t.clientY; this.lastTime = now;
-            this.offset += dy; this._normalize(); this._renderItems(); this._emitValue();
-          }, { passive: false });
-          this.el.addEventListener("touchend", () => this.onUp(), { passive: true });
-          this.el.addEventListener("touchcancel", () => this.onUp(), { passive: true });
-        } catch(_2) {}
-      }
+      } catch(_) {}
+      // Touch events párhuzamosan (Brave kompatibilitás – pointer events regisztrálhatók de nem tüzelnek)
+      try {
+        this.el.addEventListener("touchstart", (ev) => {
+          if (this.isDragging) return; // pointer event már kezeli
+          const t = ev.touches[0]; if (!t) return;
+          this._touchActive = true;
+          this.isDragging = true; this.lastY = t.clientY;
+          this.lastTime = Date.now(); this.velocity = 0;
+          if (this.animFrame) { cancelAnimationFrame(this.animFrame); this.animFrame = null; }
+        }, { passive: true });
+        this.el.addEventListener("touchmove", (ev) => {
+          if (!this._touchActive || !this.isDragging) return;
+          const t = ev.touches[0]; if (!t) return;
+          ev.preventDefault();
+          const now = Date.now(); const dy = t.clientY - this.lastY;
+          const dt = now - this.lastTime; if (dt > 0) this.velocity = dy / dt;
+          this.lastY = t.clientY; this.lastTime = now;
+          this.offset += dy; this._normalize(); this._renderItems(); this._emitValue();
+        }, { passive: false });
+        this.el.addEventListener("touchend", () => { this._touchActive = false; this.onUp(); }, { passive: true });
+        this.el.addEventListener("touchcancel", () => { this._touchActive = false; this.onUp(); }, { passive: true });
+      } catch(_) {}
     }
 
     onDown(e) {
@@ -891,8 +902,9 @@ html, body {
     }
 
     _renderItems() {
-      this.track.style.webkitTransform = `translateY(${this.offset}px)`;
-      this.track.style.transform = `translateY(${this.offset}px)`;
+      const tx = `translate3d(0,${this.offset}px,0)`;
+      this.track.style.webkitTransform = tx;
+      this.track.style.transform = tx;
       const ch = this.track.children;
       for (let i = 0; i < ch.length; i++) {
         const itemCY = this.offset + i * ITEM_H + ITEM_H / 2;
@@ -903,8 +915,9 @@ html, body {
         else if (slots < 2.5) { op = 0.22; sc = 1; }
         else { op = 0.07; sc = 1; }
         ch[i].style.opacity = op;
-        ch[i].style.webkitTransform = `scale(${sc})`;
-        ch[i].style.transform = `scale(${sc})`;
+        const stx = `scale(${sc}) translateZ(0)`;
+        ch[i].style.webkitTransform = stx;
+        ch[i].style.transform = stx;
       }
     }
 
