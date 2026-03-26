@@ -1,3 +1,14 @@
-## 2024-03-26 - Added ARIA labels to confirm dialog buttons
-**Learning:** A megerősítő párbeszédpanelek dinamikus létrehozásánál is figyelnünk kell az akadálymentesítésre. Az 'Igen'/'Nem' gombok a kontextusból egyértelműek a látó felhasználók számára, de a képernyőolvasók számára csak annyit mondanak: 'Igen, gomb'. Emiatt kiegészítettem őket `aria-label`-lel, amely elmagyarázza, hogy mi történik, ha rákattintunk (pl. 'Igen, alapértelmezések visszaállítása'). Emellett a tároló elemhez (container) hozzáadtam a `role="dialog"` és `aria-modal="true"` attribútumokat a teljesebb hozzáférhetőség érdekében.
-**Action:** A jövőben minden dinamikusan generált, kontextusfüggő gombnál (pl. mentés, törlés, visszaállítás megerősítése) ellenőrizzük és egészítsük ki az `aria-label` attribútummal.
+# 2024-03-26 - Added ARIA labels to confirm dialog buttons
+
+**Learning:** A megerősítő párbeszédpanelek dinamikus létrehozásánál is figyelnünk
+kell az akadálymentesítésre. Az 'Igen'/'Nem' gombok a kontextusból
+egyértelműek a látó felhasználók számára, de a képernyőolvasók
+számára csak annyit mondanak: 'Igen, gomb'. Emiatt kiegészítettem őket
+`aria-label`-lel, amely elmagyarázza, hogy mi történik, ha
+rákattintunk (pl. 'Igen, alapértelmezések visszaállítása'). Emellett a
+tároló elemhez (container) hozzáadtam a `role="dialog"` és
+`aria-modal="true"` attribútumokat a teljesebb hozzáférhetőség érdekében.
+
+**Action:** A jövőben minden dinamikusan generált, kontextusfüggő gombnál (pl.
+mentés, törlés, visszaállítás megerősítése) ellenőrizzük és
+egészítsük ki az `aria-label` attribútummal.

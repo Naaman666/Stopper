@@ -211,12 +211,12 @@ html, body {
 <div id="app">
   <div class="header">
     <div class="swatch-row" aria-label="Szín téma">
-      <button class="swatch active" id="swatchPurple" style="background:#7c6af7;--swatch-color:#7c6af7" aria-label="Lila téma" aria-pressed="true"></button>
-      <button class="swatch" id="swatchGreen" style="background:#2cc76a;--swatch-color:#2cc76a" aria-label="Zöld téma" aria-pressed="false"></button>
+      <button class="swatch active" id="swatch-purple" style="background:#7c6af7;--swatch-color:#7c6af7" aria-label="Lila téma" aria-pressed="true"></button>
+      <button class="swatch" id="swatch-green" style="background:#2cc76a;--swatch-color:#2cc76a" aria-label="Zöld téma" aria-pressed="false"></button>
     </div>
     <div class="header-right">
-      <button id="defaultBtn" aria-label="Alapértelmezett beállítások visszaállítása">Default</button>
-      <button id="themeBtn" aria-label="Téma váltása sötétre" aria-pressed="false">Sötét</button>
+      <button id="default-btn" aria-label="Alapértelmezett beállítások visszaállítása">Default</button>
+      <button id="theme-btn" aria-label="Téma váltása sötétre" aria-pressed="false">Sötét</button>
     </div>
   </div>
   <div class="clock-area">
@@ -224,14 +224,14 @@ html, body {
   </div>
   <div class="controls">
     <div class="btn-row">
-      <button class="btn" id="btnStop" aria-label="Stop">⏹ Stop</button>
-      <button class="btn" id="btnStart" aria-label="Indítás">▶ Indít</button>
+      <button class="btn" id="btn-stop" aria-label="Stop">⏹ Stop</button>
+      <button class="btn" id="btn-start" aria-label="Indítás">▶ Indít</button>
     </div>
     <div class="preset-row">
-      <button class="preset-save-btn" id="btnSavePreset" aria-label="Mentés az aktív helyre">Save</button>
-      <div class="preset-drum-wrap" id="presetDrum" role="listbox" aria-label="Előbeállított idők">
+      <button class="preset-save-btn" id="btn-save-preset" aria-label="Mentés az aktív helyre">Save</button>
+      <div class="preset-drum-wrap" id="preset-drum" role="listbox" aria-label="Előbeállított idők">
         <div class="preset-drum-sel"></div>
-        <div class="preset-drum-track" id="presetTrack"></div>
+        <div class="preset-drum-track" id="preset-track"></div>
         <div class="preset-drum-fade-left"></div>
         <div class="preset-drum-fade-right"></div>
       </div>
@@ -239,11 +239,11 @@ html, body {
     <div class="drums-row">
       <div class="drum-col">
         <span class="drum-label">Perc</span>
-        <div class="drum-container" id="drumMin" role="spinbutton" aria-label="Percek" aria-valuemin="0" aria-valuemax="60" aria-valuenow="1"></div>
+        <div class="drum-container" id="drum-min" role="spinbutton" aria-label="Percek" aria-valuemin="0" aria-valuemax="60" aria-valuenow="1"></div>
       </div>
       <div class="drum-col">
         <span class="drum-label">Mp</span>
-        <div class="drum-container" id="drumSec" role="spinbutton" aria-label="Másodpercek" aria-valuemin="0" aria-valuemax="59" aria-valuenow="0"></div>
+        <div class="drum-container" id="drum-sec" role="spinbutton" aria-label="Másodpercek" aria-valuemin="0" aria-valuemax="59" aria-valuenow="0"></div>
       </div>
     </div>
   </div>
@@ -335,16 +335,16 @@ html, body {
   const SEL_CENTER = 75;
   const SEL_OFFSET_BASE = SEL_CENTER - ITEM_H / 2; // 50
 
-  const themeBtn = document.getElementById("themeBtn");
-  const swatchPurple = document.getElementById("swatchPurple");
-  const swatchGreen = document.getElementById("swatchGreen");
+  const themeBtn = document.getElementById("theme-btn");
+  const swatchPurple = document.getElementById("swatch-purple");
+  const swatchGreen = document.getElementById("swatch-green");
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   const clockWrap = document.getElementById("clock-wrap");
   const clockArea = document.querySelector(".clock-area");
-  const btnStop = document.getElementById("btnStop");
-  const btnStart = document.getElementById("btnStart");
-  const drumMinEl = document.getElementById("drumMin");
-  const drumSecEl = document.getElementById("drumSec");
+  const btnStop = document.getElementById("btn-stop");
+  const btnStart = document.getElementById("btn-start");
+  const drumMinEl = document.getElementById("drum-min");
+  const drumSecEl = document.getElementById("drum-sec");
   let minDrum = null, secDrum = null;
 
   function fullRedraw() {
@@ -491,9 +491,9 @@ html, body {
   }
 
   function initPresetUI() {
-    pdWrap = document.getElementById("presetDrum");
-    pdTrack = document.getElementById("presetTrack");
-    pdBtn = document.getElementById("btnSavePreset");
+    pdWrap = document.getElementById("preset-drum");
+    pdTrack = document.getElementById("preset-track");
+    pdBtn = document.getElementById("btn-save-preset");
     if (!pdWrap || !pdTrack || !pdBtn) return;
 
     if (presetDrumInited) { renderPresets(); return; }
@@ -1132,7 +1132,7 @@ html, body {
   if (swatchGreen) swatchGreen.addEventListener("click", () => applyPalette("green"));
 
   // ── Default gomb ──
-  document.getElementById("defaultBtn").addEventListener("click", () => {
+  document.getElementById("default-btn").addEventListener("click", () => {
     const overlay = document.createElement("div");
     overlay.className = "confirm-overlay";
     overlay.innerHTML = `<div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-msg">
