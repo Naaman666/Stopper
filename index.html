@@ -1135,11 +1135,11 @@ html, body {
   document.getElementById("defaultBtn").addEventListener("click", () => {
     const overlay = document.createElement("div");
     overlay.className = "confirm-overlay";
-    overlay.innerHTML = `<div class="confirm-box">
-      <p>Visszaállítod az alapértelmezett beállításokat?</p>
+    overlay.innerHTML = `<div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-msg">
+      <p id="confirm-msg">Visszaállítod az alapértelmezett beállításokat?</p>
       <div class="confirm-btns">
-        <button class="confirm-yes">Igen</button>
-        <button class="confirm-no">Nem</button>
+        <button class="confirm-yes" aria-label="Igen, alapértelmezések visszaállítása">Igen</button>
+        <button class="confirm-no" aria-label="Nem, mégse">Nem</button>
       </div>
     </div>`;
     document.body.appendChild(overlay);
