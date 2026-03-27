@@ -1030,6 +1030,12 @@
           finishTimer = null;
         }
 
+        function resetToIdleState() {
+          clearTimers();
+          state = "idle";
+          lastSpoken = -1;
+        }
+
         function stopTimer() {
           clearTimers();
           state = "paused";
@@ -1037,10 +1043,8 @@
         }
 
         function resetToIdle() {
-          clearTimers();
-          state = "idle";
+          resetToIdleState();
           timeLeft = totalSec;
-          lastSpoken = -1;
           renderClock();
           updateUI();
         }
@@ -1206,9 +1210,7 @@
         function setDuration(sec) {
           if (state === "running") return;
           if (state === "paused" || state === "finished") {
-            clearTimers();
-            state = "idle";
-            lastSpoken = -1;
+            resetToIdleState();
           }
           totalSec = sec;
           timeLeft = sec;
@@ -1448,9 +1450,7 @@
 
         function applyDrumValues() {
           if (state === "paused" || state === "finished") {
-            clearTimers();
-            state = "idle";
-            lastSpoken = -1;
+            resetToIdleState();
           }
           if (state !== "idle") return;
           let sec = customMin * 60 + customSec;
