@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#7c6af7">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Stopper</title>
 <link rel="manifest" href="manifest.json">
@@ -139,44 +138,33 @@ html, body {
 .btn:disabled { opacity: 0.45; cursor: default; }
 #btnStop { background: var(--btn-stop-bg); }
 #btnStart { background: var(--btn-start-bg); }
-.preset-row { display: flex; gap: 8px; align-items: stretch; }
+.preset-row { display: flex; gap: 10px; align-items: center; }
 .preset-save-btn {
-  flex-shrink: 0; width: 100px; height: 38px;
+  flex-shrink: 0; width: 60px; height: 38px;
   border-radius: 10px; border: none;
-  font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  font-size: 0.75rem; font-weight: 700; cursor: pointer;
   background: var(--save-clr); color: #fff;
   transition: background 0.15s, opacity 0.15s;
 }
-.preset-save-btn.load-mode { background: var(--arc-normal); }
 .preset-save-btn:active:not(:disabled) { opacity: 0.7; }
 .preset-save-btn:disabled { opacity: 0.45; cursor: default; }
-.preset-drum-wrap {
-  flex: 1; height: 38px; position: relative; overflow: hidden;
-  background: var(--drum-bg); border-radius: 10px;
-  touch-action: none;
-  transition: opacity 0.2s;
+.preset-scroll {
+  flex: 1; display: flex; gap: 8px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
-.preset-drum-wrap.locked { opacity: 0.32; pointer-events: none; }
-.preset-drum-track {
-  position: absolute; top: 0; bottom: 0; display: flex; align-items: center;
-  will-change: transform;
+.preset-scroll::-webkit-scrollbar { display: none; }
+.preset-slot {
+  flex-shrink: 0; /* width JS-sel van beállítva */ height: 38px;
+  border-radius: 10px; border: 2px solid transparent;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  background: var(--dur-inactive-bg); color: var(--drum-item);
+  transition: background 0.2s, color 0.2s, opacity 0.15s, border-color 0.2s;
 }
-.preset-drum-item {
-  width: 72px; height: 38px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.82rem; font-weight: 700; color: var(--drum-item);
-  will-change: transform, opacity;
-}
-.preset-drum-sel {
-  position: absolute; top: 3px; bottom: 3px; width: 72px;
-  left: 50%; transform: translateX(-50%);
-  border-radius: 8px; background: var(--drum-sel); pointer-events: none;
-}
-.preset-drum-fade-left, .preset-drum-fade-right {
-  position: absolute; top: 0; bottom: 0; width: 16px; pointer-events: none; z-index: 2;
-}
-.preset-drum-fade-left { left: 0; background: linear-gradient(to right, var(--drum-bg), transparent); }
-.preset-drum-fade-right { right: 0; background: linear-gradient(to left, var(--drum-bg), transparent); }
+.preset-slot.cursor { border-color: var(--save-clr); background: var(--save-clr-light); color: var(--save-clr); }
+.preset-slot.active { background: var(--dur-active-bg); color: var(--text-inv); border-color: transparent; }
+.preset-slot.cursor.active { border-color: var(--save-clr); }
+.preset-slot.empty { opacity: 0.4; }
+.preset-slot:disabled { opacity: 0.45; cursor: default; }
 .drums-row {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
   margin-top: 2px;
@@ -229,12 +217,7 @@ html, body {
     </div>
     <div class="preset-row">
       <button class="preset-save-btn" id="btnSavePreset" aria-label="Mentés az aktív helyre">Save</button>
-      <div class="preset-drum-wrap" id="presetDrum" role="listbox" aria-label="Előbeállított idők">
-        <div class="preset-drum-sel"></div>
-        <div class="preset-drum-track" id="presetTrack"></div>
-        <div class="preset-drum-fade-left"></div>
-        <div class="preset-drum-fade-right"></div>
-      </div>
+      <div class="preset-scroll" id="presetScroll" role="listbox" aria-label="Előbeállított idők"></div>
     </div>
     <div class="drums-row">
       <div class="drum-col">
@@ -306,16 +289,13 @@ html, body {
     for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
     ccNormal = vars["--arc-normal"];
     // Update theme-color meta
-    if (themeColorMeta) themeColorMeta.setAttribute("content", PALETTES[name].light["--arc-normal"]);
+    const tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute("content", PALETTES[name].light["--arc-normal"]);
     // Update swatch active state
-    if (swatchPurple) {
-      swatchPurple.classList.toggle("active", name === "purple");
-      swatchPurple.setAttribute("aria-pressed", name === "purple" ? "true" : "false");
-    }
-    if (swatchGreen) {
-      swatchGreen.classList.toggle("active", name === "green");
-      swatchGreen.setAttribute("aria-pressed", name === "green" ? "true" : "false");
-    }
+    document.getElementById("swatchPurple").classList.toggle("active", name === "purple");
+    document.getElementById("swatchPurple").setAttribute("aria-pressed", name === "purple" ? "true" : "false");
+    document.getElementById("swatchGreen").classList.toggle("active", name === "green");
+    document.getElementById("swatchGreen").setAttribute("aria-pressed", name === "green" ? "true" : "false");
     localStorage.setItem("stopper_palette", name);
     renderClock();
   }
@@ -336,24 +316,34 @@ html, body {
   const SEL_OFFSET_BASE = SEL_CENTER - ITEM_H / 2; // 50
 
   const themeBtn = document.getElementById("themeBtn");
-  const swatchPurple = document.getElementById("swatchPurple");
-  const swatchGreen = document.getElementById("swatchGreen");
-  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   const clockWrap = document.getElementById("clock-wrap");
-  const clockArea = document.querySelector(".clock-area");
   const btnStop = document.getElementById("btnStop");
   const btnStart = document.getElementById("btnStart");
   const drumMinEl = document.getElementById("drumMin");
   const drumSecEl = document.getElementById("drumSec");
   let minDrum = null, secDrum = null;
 
+  function updatePresetSlotWidths() {
+    const scroll = document.getElementById("presetScroll");
+    if (!scroll) return;
+    const GAP = 8;
+    const w = Math.floor((scroll.clientWidth - GAP * 2) / 3);
+    if (w <= 0) { setTimeout(updatePresetSlotWidths, 200); return; }
+    scroll.querySelectorAll(".preset-slot").forEach(s => { s.style.width = w + "px"; });
+  }
   function fullRedraw() {
     tryInitDrums();
     initPresetUI();
+    updatePresetSlotWidths();
     renderClock();
     updateUI();
-    if (minDrum && minDrum.track) minDrum.scrollToValue(customMin, false);
-    if (secDrum && secDrum.track) secDrum.scrollToValue(customSec, false);
+    // Safari: kényszerített repaint a drum track-ekre (bfcache restore után)
+    if (minDrum && minDrum.track) {
+      minDrum.scrollToValue(customMin, false);
+    }
+    if (secDrum && secDrum.track) {
+      secDrum.scrollToValue(customSec, false);
+    }
   }
   window.addEventListener("load", fullRedraw);
   window.addEventListener("pageshow", (e) => { if (e.persisted) fullRedraw(); });
@@ -376,13 +366,11 @@ html, body {
   }
 
   function loadPresets() {
-    try {
-      const saved = JSON.parse(localStorage.getItem("stopper_presets"));
-      if (Array.isArray(saved) && saved.length === 10) {
-        presets = saved;
-        return;
-      }
-    } catch (e) {}
+    const saved = JSON.parse(localStorage.getItem("stopper_presets"));
+    if (Array.isArray(saved) && saved.length === 10) {
+      presets = saved;
+      return;
+    }
     presets[0] = { min: 1, sec: 0 };
     presets[1] = { min: 1, sec: 30 };
   }
@@ -398,186 +386,52 @@ html, body {
 
   const P_COUNT = 10;
 
-  // ── Preset Drum (vízszintes dobtárcsa) ──
-  const PRESET_ITEM_W = 72;
-  let presetDrumOffset = 0;
-  let presetDrumVel = 0;
-  let presetDrumDragging = false;
-  let presetDrumLastX = 0;
-  let presetDrumLastTime = 0;
-  let presetDrumAnim = null;
-  let presetDrumInited = false;
-  let pdWrap = null, pdTrack = null, pdBtn = null;
-  let pdWrapW = 0;
-  let pdLastRenderedIdx = -1;
-
-  function pdCenterForIndex(idx) {
-    return pdWrapW / 2 - idx * PRESET_ITEM_W - PRESET_ITEM_W / 2;
-  }
-
-  function pdCurrentIdx() {
-    const idx = Math.round((pdWrapW / 2 - presetDrumOffset - PRESET_ITEM_W / 2) / PRESET_ITEM_W);
-    return Math.max(0, Math.min(P_COUNT - 1, idx));
-  }
-
-  function renderPresetDrum() {
-    if (!pdTrack || !pdWrapW) return;
-    const items = pdTrack.children;
-    const center = pdWrapW / 2;
-
-    pdTrack.style.transform = `translateX(${presetDrumOffset}px)`;
-
-    for (let i = 0; i < items.length; i++) {
-      const itemCX = presetDrumOffset + i * PRESET_ITEM_W + PRESET_ITEM_W / 2;
-      const dist = Math.abs(itemCX - center) / PRESET_ITEM_W;
-      let op;
-      if (dist < 0.5) op = 1;
-      else if (dist < 1.5) op = 0.65;
-      else if (dist < 2.5) op = 0.4;
-      else op = 0.2;
-      items[i].style.opacity = op;
-    }
-
-    const newIdx = pdCurrentIdx();
-    if (newIdx !== pdLastRenderedIdx) {
-      pdLastRenderedIdx = newIdx;
-      presetCursorIdx = newIdx;
-      updateSaveLoadBtn();
-    }
-  }
-
-  function updateSaveLoadBtn() {
-    if (!pdBtn) return;
-    pdBtn.disabled = state === "running";
-    const p = presets[presetCursorIdx];
-    if (p && totalSec === p.min * 60 + p.sec) {
-      pdBtn.textContent = "Load";
-      pdBtn.classList.add("load-mode");
-    } else {
-      pdBtn.textContent = "Save";
-      pdBtn.classList.remove("load-mode");
-    }
-  }
-
-  function presetDrumScrollTo(idx, animated) {
-    if (presetDrumAnim) { cancelAnimationFrame(presetDrumAnim); presetDrumAnim = null; }
-    const target = pdCenterForIndex(idx);
-    if (!animated) {
-      presetDrumOffset = target;
-      renderPresetDrum();
-      return;
-    }
-    const animate = () => {
-      const delta = target - presetDrumOffset;
-      if (Math.abs(delta) < SNAP_THRESH) {
-        presetDrumOffset = target;
-        renderPresetDrum();
-        return;
-      }
-      presetDrumOffset += delta * SNAP_LERP;
-      renderPresetDrum();
-      presetDrumAnim = requestAnimationFrame(animate);
-    };
-    presetDrumAnim = requestAnimationFrame(animate);
-  }
-
   function renderPresets() {
-    if (!pdTrack) return;
-    const items = pdTrack.children;
-    for (let i = 0; i < items.length; i++) {
-      items[i].textContent = presetLabel(presets[i]);
-    }
-    renderPresetDrum();
+    const scroll = document.getElementById("presetScroll");
+    if (!scroll) return;
+    scroll.querySelectorAll(".preset-slot").forEach((slot, i) => {
+      const p = presets[i];
+      slot.textContent = presetLabel(p);
+      slot.classList.toggle("cursor", i === presetCursorIdx);
+      slot.classList.toggle("active", !!p && totalSec === p.min * 60 + p.sec);
+      slot.classList.toggle("empty", !p);
+      slot.disabled = state === "running";
+    });
+    const btnSave = document.getElementById("btnSavePreset");
+    if (btnSave) btnSave.disabled = state === "running";
   }
 
   function initPresetUI() {
-    pdWrap = document.getElementById("presetDrum");
-    pdTrack = document.getElementById("presetTrack");
-    pdBtn = document.getElementById("btnSavePreset");
-    if (!pdWrap || !pdTrack || !pdBtn) return;
-
-    if (presetDrumInited) { renderPresets(); return; }
-    presetDrumInited = true;
-
-    pdWrapW = pdWrap.clientWidth;
+    const scroll = document.getElementById("presetScroll");
+    const btnSave = document.getElementById("btnSavePreset");
+    if (!scroll || !btnSave) return;
+    // Idempotent: ha már van slot, csak frissíti
+    if (scroll.querySelector(".preset-slot")) { renderPresets(); return; }
 
     for (let i = 0; i < P_COUNT; i++) {
-      const item = document.createElement("div");
-      item.className = "preset-drum-item";
-      item.textContent = presetLabel(presets[i]);
-      pdTrack.appendChild(item);
+      const btn = document.createElement("button");
+      btn.className = "preset-slot";
+      btn.setAttribute("role", "option");
+      btn.addEventListener("click", () => {
+        presetCursorIdx = i;
+        const p = presets[i];
+        if (p) setDuration(p.min * 60 + p.sec);
+        renderPresets();
+      });
+      scroll.appendChild(btn);
     }
 
-    presetDrumOffset = pdCenterForIndex(presetCursorIdx);
-    renderPresetDrum();
+    new ResizeObserver(updatePresetSlotWidths).observe(scroll);
 
-    pdWrap.addEventListener("pointerdown", (e) => {
-      if (state === "running") return;
-      e.preventDefault();
-      pdWrap.setPointerCapture(e.pointerId);
-      presetDrumDragging = true;
-      presetDrumLastX = e.clientX;
-      presetDrumLastTime = Date.now();
-      presetDrumVel = 0;
-      if (presetDrumAnim) { cancelAnimationFrame(presetDrumAnim); presetDrumAnim = null; }
-    });
-
-    pdWrap.addEventListener("pointermove", (e) => {
-      if (!presetDrumDragging) return;
-      e.preventDefault();
-      const now = Date.now();
-      const dx = e.clientX - presetDrumLastX;
-      const dt = now - presetDrumLastTime;
-      if (dt > 0) presetDrumVel = dx / dt;
-      presetDrumLastX = e.clientX;
-      presetDrumLastTime = now;
-      presetDrumOffset += dx;
-      const minOff = pdCenterForIndex(P_COUNT - 1);
-      const maxOff = pdCenterForIndex(0);
-      presetDrumOffset = Math.max(minOff - PRESET_ITEM_W, Math.min(maxOff + PRESET_ITEM_W, presetDrumOffset));
-      renderPresetDrum();
-    });
-
-    const onUp = () => {
-      if (!presetDrumDragging) return;
-      presetDrumDragging = false;
-      let vel = presetDrumVel * 80;
-      const minOff = pdCenterForIndex(P_COUNT - 1);
-      const maxOff = pdCenterForIndex(0);
-      const step = () => {
-        vel *= FRICTION;
-        if (Math.abs(vel) < MIN_VEL) { presetDrumScrollTo(pdCurrentIdx(), true); return; }
-        presetDrumOffset += vel;
-        presetDrumOffset = Math.max(minOff - PRESET_ITEM_W / 2, Math.min(maxOff + PRESET_ITEM_W / 2, presetDrumOffset));
-        renderPresetDrum();
-        presetDrumAnim = requestAnimationFrame(step);
-      };
-      presetDrumAnim = requestAnimationFrame(step);
-    };
-    pdWrap.addEventListener("pointerup", onUp);
-    pdWrap.addEventListener("pointercancel", onUp);
-
-    pdBtn.addEventListener("click", () => {
-      const p = presets[presetCursorIdx];
-      if (p && totalSec === p.min * 60 + p.sec) {
-        setDuration(p.min * 60 + p.sec);
-      } else {
-        presets[presetCursorIdx] = { min: customMin, sec: customSec };
-        savePresets();
-      }
+    btnSave.addEventListener("click", () => {
+      presets[presetCursorIdx] = { min: customMin, sec: customSec };
+      savePresets();
       renderPresets();
+      btnSave.textContent = "OK!";
+      setTimeout(() => { btnSave.textContent = "Save"; }, 800);
     });
 
-    let pdResizeRaf = null;
-    new ResizeObserver(() => {
-      if (pdResizeRaf) return;
-      pdResizeRaf = requestAnimationFrame(() => {
-        pdResizeRaf = null;
-        pdWrapW = pdWrap.clientWidth;
-        presetDrumOffset = pdCenterForIndex(presetCursorIdx);
-        renderPresetDrum();
-      });
-    }).observe(pdWrap);
+    renderPresets();
   }
 
   // ── Theme ──
@@ -598,16 +452,27 @@ html, body {
 
   // ── Clock ──
   function getClockSize() {
-    if (clockArea) {
-      const h = clockArea.clientHeight;
-      const w = clockArea.clientWidth;
+    const area = document.querySelector(".clock-area");
+    if (area) {
+      const h = area.clientHeight;
+      const w = area.clientWidth;
       if (h > 40 && w > 40) return Math.min(w, h) - 4;
     }
     const vp = window.visualViewport || { width: window.innerWidth, height: window.innerHeight };
     return Math.max(80, Math.min(vp.width - 32, vp.height - 220));
   }
 
-  function createArcAndKnobSvg(frac, cx, cy, r, arcColor) {
+  function renderClock() {
+    if (!clockWrap) return;
+    const sz = getClockSize();
+    const r = sz / 2 - STROKE_W - KNOB_R - 2;
+    const cx = sz / 2, cy = sz / 2;
+    const displayTime = dragActive ? dragFloatTime : timeLeft;
+    const isAlert = timeLeft <= 10 && (state !== "idle" || timeLeft < totalSec);
+    const arcColor = isAlert ? ccAlert : ccNormal;
+    const trackColor = ccTrack;
+    const frac = totalSec > 0 ? displayTime / totalSec : 0;
+
     let arcSvg = "";
     let knobSvg = "";
 
@@ -627,33 +492,15 @@ html, body {
       knobSvg = `<circle cx="${cx}" cy="${cy - r}" r="${KNOB_R}" fill="${arcColor}"/>`;
     }
 
-    return { arcSvg, knobSvg };
-  }
-
-  function createDigitText(state, cx, cy, r, digitSize, timeLeft, arcColor) {
+    const digitSize = Math.max(14, sz * 0.21);
+    let digitText;
     if (state === "finished") {
-      return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${r * 0.38}" font-weight="800" fill="${arcColor}">GO GO GO</text>`;
+      digitText = `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${r * 0.38}" font-weight="800" fill="${arcColor}">GO GO GO</text>`;
     } else {
       const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
       const ss = String(timeLeft % 60).padStart(2, "0");
-      return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${digitSize}" font-weight="800" fill="${arcColor}">${mm}:${ss}</text>`;
+      digitText = `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${digitSize}" font-weight="800" fill="${arcColor}">${mm}:${ss}</text>`;
     }
-  }
-
-  function renderClock() {
-    if (!clockWrap) return;
-    const sz = getClockSize();
-    const r = sz / 2 - STROKE_W - KNOB_R - 2;
-    const cx = sz / 2, cy = sz / 2;
-    const displayTime = dragActive ? dragFloatTime : timeLeft;
-    const isAlert = timeLeft <= 10 && (state !== "idle" || timeLeft < totalSec);
-    const arcColor = isAlert ? ccAlert : ccNormal;
-    const trackColor = ccTrack;
-    const frac = totalSec > 0 ? displayTime / totalSec : 0;
-
-    const { arcSvg, knobSvg } = createArcAndKnobSvg(frac, cx, cy, r, arcColor);
-    const digitSize = Math.max(14, sz * 0.21);
-    const digitText = createDigitText(state, cx, cy, r, digitSize, timeLeft, arcColor);
 
     clockWrap.innerHTML = `<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" aria-hidden="true">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${trackColor}" stroke-width="${STROKE_W}"/>
@@ -707,8 +554,6 @@ html, body {
   });
 
   clockWrap.addEventListener("pointermove", (e) => {
-    if (!dragActive && !dragReady) return; // ⚡ Bolt: Early return to prevent layout thrashing on idle hover
-
     pointerMoved = true;
     const rect = clockWrap.getBoundingClientRect();
     const sz = getClockSize();
@@ -808,19 +653,10 @@ html, body {
     state = "paused"; updateUI();
   }
 
-  function clearTimers() {
+  function resetToIdle() {
     clearTimeout(tickTimer); clearTimeout(finishTimer);
     tickTimer = null; finishTimer = null;
-  }
-
-  function resetToIdleState() {
-    clearTimers();
-    state = "idle"; lastSpoken = -1;
-  }
-
-  function resetToIdle() {
-    resetToIdleState();
-    timeLeft = totalSec;
+    state = "idle"; timeLeft = totalSec; lastSpoken = -1;
     renderClock(); updateUI();
   }
 
@@ -911,8 +747,6 @@ html, body {
     }
     renderPresets();
 
-    if (pdWrap) pdWrap.classList.toggle("locked", state === "running");
-
     const drumLocked = state === "running";
     drumMinEl.classList.toggle("locked", drumLocked);
     drumSecEl.classList.toggle("locked", drumLocked || customMin === 60);
@@ -937,7 +771,9 @@ html, body {
   function setDuration(sec) {
     if (state === "running") return;
     if (state === "paused" || state === "finished") {
-      resetToIdleState();
+      clearTimeout(tickTimer); clearTimeout(finishTimer);
+      tickTimer = null; finishTimer = null;
+      state = "idle"; lastSpoken = -1;
     }
     totalSec = sec; timeLeft = sec;
     customMin = Math.floor(sec / 60); customSec = sec % 60;
@@ -974,14 +810,10 @@ html, body {
       this.el.innerHTML = "";
       const sel = document.createElement("div"); sel.className = "drum-sel"; this.el.appendChild(sel);
       this.track = document.createElement("div"); this.track.className = "drum-track";
-      this.items = [];
       for (let i = 0; i < this.totalItems; i++) {
         const d = document.createElement("div"); d.className = "drum-item";
         d.textContent = String(i % this.count).padStart(2, "0");
-        d.style.opacity = 0.07;
-        d.style.transform = "scale(1)";
         this.track.appendChild(d);
-        this.items.push(d);
       }
       this.el.appendChild(this.track);
       const ft = document.createElement("div"); ft.className = "drum-fade-top";
@@ -1075,29 +907,8 @@ html, body {
 
     _renderItems() {
       this.track.style.transform = `translateY(${this.offset}px)`;
-
-      const centerIdx = Math.round((SEL_CENTER - this.offset - ITEM_H / 2) / ITEM_H);
-      const startIdx = Math.max(0, centerIdx - 3);
-      const endIdx = Math.min(this.totalItems - 1, centerIdx + 3);
-
-      if (this.lastStartIdx !== undefined) {
-        for (let i = this.lastStartIdx; i < startIdx; i++) {
-          if (i >= 0 && i < this.totalItems) {
-            this.items[i].style.opacity = 0.07;
-            this.items[i].style.transform = "scale(1)";
-          }
-        }
-        for (let i = endIdx + 1; i <= this.lastEndIdx; i++) {
-          if (i >= 0 && i < this.totalItems) {
-            this.items[i].style.opacity = 0.07;
-            this.items[i].style.transform = "scale(1)";
-          }
-        }
-      }
-      this.lastStartIdx = startIdx;
-      this.lastEndIdx = endIdx;
-
-      for (let i = startIdx; i <= endIdx; i++) {
+      const ch = this.track.children;
+      for (let i = 0; i < ch.length; i++) {
         const itemCY = this.offset + i * ITEM_H + ITEM_H / 2;
         const slots = Math.abs(itemCY - SEL_CENTER) / ITEM_H;
         let op, sc;
@@ -1105,8 +916,8 @@ html, body {
         else if (slots < 1.5) { op = 0.55; sc = 1; }
         else if (slots < 2.5) { op = 0.22; sc = 1; }
         else { op = 0.07; sc = 1; }
-        this.items[i].style.opacity = op;
-        this.items[i].style.transform = `scale(${sc})`;
+        ch[i].style.opacity = op;
+        ch[i].style.transform = `scale(${sc})`;
       }
     }
 
@@ -1152,7 +963,9 @@ html, body {
 
   function applyDrumValues() {
     if (state === "paused" || state === "finished") {
-      resetToIdleState();
+      clearTimeout(tickTimer); clearTimeout(finishTimer);
+      tickTimer = null; finishTimer = null;
+      state = "idle"; lastSpoken = -1;
     }
     if (state !== "idle") return;
     let sec = customMin * 60 + customSec;
@@ -1163,22 +976,21 @@ html, body {
   }
 
   // ── Swatch click handlers ──
-  if (swatchPurple) swatchPurple.addEventListener("click", () => applyPalette("purple"));
-  if (swatchGreen) swatchGreen.addEventListener("click", () => applyPalette("green"));
+  document.getElementById("swatchPurple").addEventListener("click", () => applyPalette("purple"));
+  document.getElementById("swatchGreen").addEventListener("click", () => applyPalette("green"));
 
   // ── Default gomb ──
   document.getElementById("defaultBtn").addEventListener("click", () => {
     const overlay = document.createElement("div");
     overlay.className = "confirm-overlay";
-    overlay.innerHTML = `<div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <p id="confirm-title">Visszaállítod az alapértelmezett beállításokat?</p>
+    overlay.innerHTML = `<div class="confirm-box">
+      <p>Visszaállítod az alapértelmezett beállításokat?</p>
       <div class="confirm-btns">
         <button class="confirm-yes">Igen</button>
         <button class="confirm-no">Nem</button>
       </div>
     </div>`;
     document.body.appendChild(overlay);
-    overlay.querySelector(".confirm-no").focus();
     overlay.querySelector(".confirm-no").addEventListener("click", () => overlay.remove());
     overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
     overlay.querySelector(".confirm-yes").addEventListener("click", () => {
@@ -1224,6 +1036,7 @@ html, body {
   updateUI();
 
   // Clock újrarenderelés méretre
+  const clockArea = document.querySelector(".clock-area");
   let resizeRaf = null;
   function onResize() {
     if (resizeRaf) return;
