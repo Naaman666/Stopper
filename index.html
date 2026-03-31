@@ -695,10 +695,33 @@
           if (!isNaN(s) && s >= 0 && s < 60) customSec = s;
         }
 
+        function normalizePresetEntry(entry) {
+          if (!entry || typeof entry !== "object") return null;
+          const min = Number.parseInt(entry.min, 10);
+          const sec = Number.parseInt(entry.sec, 10);
+          if (
+            !Number.isInteger(min) ||
+            !Number.isInteger(sec) ||
+            min < 0 ||
+            min > 60 ||
+            sec < 0 ||
+            sec > 59
+          ) {
+            return null;
+          }
+          if (min === 60 && sec !== 0) return null;
+          return { min, sec };
+        }
+
         function loadPresets() {
-          const saved = JSON.parse(localStorage.getItem("stopper_presets"));
+          let saved = null;
+          try {
+            saved = JSON.parse(localStorage.getItem("stopper_presets"));
+          } catch (_) {
+            saved = null;
+          }
           if (Array.isArray(saved) && saved.length === 10) {
-            presets = saved;
+            presets = saved.map(normalizePresetEntry);
             return;
           }
           presets[0] = { min: 1, sec: 0 };

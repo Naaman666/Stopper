@@ -23,9 +23,15 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("fetch", e => {
+  if (e.request.method !== "GET") {
+    return;
+  }
+
   e.respondWith(
     fetch(e.request).then(r => {
-      if (r.ok || r.type === "opaque") {
+      const reqUrl = new URL(e.request.url);
+      const isSameOrigin = reqUrl.origin === self.location.origin;
+      if ((r.ok || r.type === "opaque") && isSameOrigin) {
         const clone = r.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
       }
