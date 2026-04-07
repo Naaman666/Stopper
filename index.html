@@ -689,13 +689,6 @@
           localStorage.setItem("stopper_sec", customSec);
         }
 
-        function loadPreset() {
-          const m = parseInt(localStorage.getItem("stopper_min"), 10);
-          const s = parseInt(localStorage.getItem("stopper_sec"), 10);
-          if (!isNaN(m) && m >= 0 && m <= 60) customMin = m;
-          if (!isNaN(s) && s >= 0 && s < 60) customSec = s;
-        }
-
         function normalizeDurationParts(minValue, secValue) {
           const min = Number.parseInt(minValue, 10);
           const sec = Number.parseInt(secValue, 10);
