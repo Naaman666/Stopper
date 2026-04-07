@@ -643,19 +643,21 @@
         const btnStart = document.getElementById("btnStart");
         const drumMinEl = document.getElementById("drumMin");
         const drumSecEl = document.getElementById("drumSec");
+        const presetScrollEl = document.getElementById("presetScroll");
+        const btnSavePresetEl = document.getElementById("btnSavePreset");
+        let presetSlotEls = [];
         let minDrum = null,
           secDrum = null;
 
         function updatePresetSlotWidths() {
-          const scroll = document.getElementById("presetScroll");
-          if (!scroll) return;
+          if (!presetScrollEl) return;
           const GAP = 8;
-          const w = Math.floor((scroll.clientWidth - GAP * 2) / 3);
+          const w = Math.floor((presetScrollEl.clientWidth - GAP * 2) / 3);
           if (w <= 0) {
             setTimeout(updatePresetSlotWidths, 200);
             return;
           }
-          scroll.querySelectorAll(".preset-slot").forEach((s) => {
+          presetSlotEls.forEach((s) => {
             s.style.width = w + "px";
           });
         }
@@ -755,9 +757,8 @@
         }
 
         function renderPresets() {
-          const scroll = document.getElementById("presetScroll");
-          if (!scroll) return;
-          scroll.querySelectorAll(".preset-slot").forEach((slot, i) => {
+          if (!presetScrollEl) return;
+          presetSlotEls.forEach((slot, i) => {
             const p = presets[i];
             slot.textContent = presetLabel(p);
             slot.classList.toggle("cursor", i === presetCursorIdx);
@@ -768,20 +769,20 @@
             slot.classList.toggle("empty", !p);
             slot.disabled = state === "running";
           });
-          const btnSave = document.getElementById("btnSavePreset");
-          if (btnSave) btnSave.disabled = state === "running";
+          if (btnSavePresetEl) btnSavePresetEl.disabled = state === "running";
         }
 
         function initPresetUI() {
-          const scroll = document.getElementById("presetScroll");
-          const btnSave = document.getElementById("btnSavePreset");
-          if (!scroll || !btnSave) return;
+          if (!presetScrollEl || !btnSavePresetEl) return;
           // Idempotent: ha már van slot, csak frissíti
-          if (scroll.querySelector(".preset-slot")) {
+          const existing = presetScrollEl.querySelectorAll(".preset-slot");
+          if (existing.length > 0) {
+            presetSlotEls = Array.from(existing);
             renderPresets();
             return;
           }
 
+          presetSlotEls = [];
           for (let i = 0; i < P_COUNT; i++) {
             const btn = document.createElement("button");
             btn.className = "preset-slot";
@@ -792,18 +793,19 @@
               if (p) setDuration(p.min * 60 + p.sec);
               renderPresets();
             });
-            scroll.appendChild(btn);
+            presetScrollEl.appendChild(btn);
+            presetSlotEls.push(btn);
           }
 
-          new ResizeObserver(updatePresetSlotWidths).observe(scroll);
+          new ResizeObserver(updatePresetSlotWidths).observe(presetScrollEl);
 
-          btnSave.addEventListener("click", () => {
+          btnSavePresetEl.addEventListener("click", () => {
             presets[presetCursorIdx] = { min: customMin, sec: customSec };
             savePresets();
             renderPresets();
-            btnSave.textContent = "OK!";
+            btnSavePresetEl.textContent = "OK!";
             setTimeout(() => {
-              btnSave.textContent = "Save";
+              btnSavePresetEl.textContent = "Save";
             }, 800);
           });
 
