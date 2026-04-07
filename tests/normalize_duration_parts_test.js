@@ -47,6 +47,13 @@ const tests = [
   { input: [null, 30], expected: null, name: "Null min" },
   { input: [5, null], expected: null, name: "Null sec" },
   { input: [undefined, undefined], expected: null, name: "Undefined inputs" },
+  { input: ["", ""], expected: null, name: "Empty strings" },
+  { input: [true, false], expected: null, name: "Boolean types" },
+  { input: [[], {}], expected: null, name: "Array and Object types" },
+  { input: [NaN, 30], expected: null, name: "NaN min" },
+  { input: [5, NaN], expected: null, name: "NaN sec" },
+  { input: [Infinity, 30], expected: null, name: "Infinity min" },
+  { input: [5, -Infinity], expected: null, name: "Negative Infinity sec" },
 
   // Float parsing (parseInt truncates floats)
   {
@@ -85,8 +92,10 @@ tests.forEach((test) => {
 
 if (failedCount > 0) {
   console.log(`\nTotal ${failedCount} tests failed.`);
+  // eslint-disable-next-line no-undef
   process.exit(1);
 } else {
   console.log("\nAll tests passed successfully!");
+  // eslint-disable-next-line no-undef
   process.exit(0);
 }
