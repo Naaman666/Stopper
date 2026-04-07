@@ -45,11 +45,27 @@ function normalizePresetEntry(entry) {
   return normalizeDurationParts(entry.min, entry.sec);
 }
 
+/**
+ * Finds a Hungarian voice from the available speech synthesis voices.
+ *
+ * @param {SpeechSynthesis} synth - The SpeechSynthesis instance (usually global speechSynthesis).
+ * @returns {SpeechSynthesisVoice|null} The Hungarian voice if found, otherwise null.
+ */
+function findHuVoice(synth) {
+  if (!synth || typeof synth.getVoices !== "function") return null;
+  return (
+    synth.getVoices().find((v) => v.lang && v.lang.startsWith("hu")) || null
+  );
+}
+
 // Export for Node.js testing environment
+/* eslint-disable no-undef */
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     presetLabel,
     normalizeDurationParts,
     normalizePresetEntry,
+    findHuVoice,
   };
 }
+/* eslint-enable no-undef */
