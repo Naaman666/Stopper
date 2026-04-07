@@ -1,5 +1,4 @@
 name: HTML/JS CI
-
 on:
   push:
     branches: [main, develop]
