@@ -1265,11 +1265,13 @@
             this.el.appendChild(sel);
             this.track = document.createElement("div");
             this.track.className = "drum-track";
+            this.items = [];
             for (let i = 0; i < this.totalItems; i++) {
               const d = document.createElement("div");
               d.className = "drum-item";
               d.textContent = String(i % this.count).padStart(2, "0");
               this.track.appendChild(d);
+              this.items.push(d);
             }
             this.el.appendChild(this.track);
             const ft = document.createElement("div");
@@ -1278,6 +1280,7 @@
             fb.className = "drum-fade-bottom";
             this.el.appendChild(ft);
             this.el.appendChild(fb);
+            this.lastVisibleIndices = new Set();
           }
 
           bind() {
@@ -1377,8 +1380,20 @@
 
           _renderItems() {
             this.track.style.transform = `translateY(${this.offset}px)`;
-            const ch = this.track.children;
-            for (let i = 0; i < ch.length; i++) {
+
+            // Csak a látható indexeket számoljuk ki (kb. középpont +- 3 elem)
+            const centerIdx = Math.round(
+              (SEL_CENTER - ITEM_H / 2 - this.offset) / ITEM_H,
+            );
+            const minIdx = Math.max(0, centerIdx - 3);
+            const maxIdx = Math.min(this.totalItems - 1, centerIdx + 3);
+
+            const currentVisible = new Set();
+
+            for (let i = minIdx; i <= maxIdx; i++) {
+              currentVisible.add(i);
+              this.lastVisibleIndices.delete(i);
+
               const itemCY = this.offset + i * ITEM_H + ITEM_H / 2;
               const slots = Math.abs(itemCY - SEL_CENTER) / ITEM_H;
               let op, sc;
@@ -1395,9 +1410,24 @@
                 op = 0.07;
                 sc = 1;
               }
-              ch[i].style.opacity = op;
-              ch[i].style.transform = `scale(${sc})`;
+
+              const el = this.items[i];
+              if (el) {
+                el.style.opacity = op;
+                el.style.transform = `scale(${sc})`;
+              }
             }
+
+            // Azokat az elemeket, amelyek elhagyták a látható területet, visszaállítjuk alapra
+            for (const i of this.lastVisibleIndices) {
+              const el = this.items[i];
+              if (el) {
+                el.style.opacity = 0.07;
+                el.style.transform = "scale(1)";
+              }
+            }
+
+            this.lastVisibleIndices = currentVisible;
           }
 
           scrollToValue(val, animated) {
