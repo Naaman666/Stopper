@@ -1,4 +1,4 @@
-const { presetLabel } = require('../js/utils');
+const { presetLabel } = require("../js/utils");
 
 const tests = [
   { input: { min: 5, sec: 0 }, expected: "5:00", name: "Valid preset (5:00)" },
@@ -8,17 +8,19 @@ const tests = [
   { input: {}, expected: "–", name: "Empty object" },
   { input: { min: 5 }, expected: "–", name: "Missing sec" },
   { input: { sec: 30 }, expected: "–", name: "Missing min" },
-  { input: { min: null, sec: 30 }, expected: "–", name: "Null min property" }
+  { input: { min: null, sec: 30 }, expected: "–", name: "Null min property" },
 ];
 
 let failedCount = 0;
-tests.forEach(test => {
+tests.forEach((test) => {
   try {
     const result = presetLabel(test.input);
     if (result === test.expected) {
       console.log(`✅ PASSED: ${test.name}`);
     } else {
-      console.log(`❌ FAILED: ${test.name} | Expected: "${test.expected}", Got: "${result}"`);
+      console.log(
+        `❌ FAILED: ${test.name} | Expected: "${test.expected}", Got: "${result}"`,
+      );
       failedCount++;
     }
   } catch (e) {

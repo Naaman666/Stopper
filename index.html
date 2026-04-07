@@ -651,6 +651,7 @@
           secDrum = null;
 
         function updatePresetSlotWidths() {
+          // ⚡ Cached presetScrollEl prevents unnecessary document.getElementById queries
           if (!presetScrollEl) return;
           const GAP = 8;
           const w = Math.floor((presetScrollEl.clientWidth - GAP * 2) / 3);
@@ -658,6 +659,7 @@
             setTimeout(updatePresetSlotWidths, 200);
             return;
           }
+          // ⚡ Cached presetSlotEls array avoids expensive querySelectorAll(".preset-slot") on every call
           presetSlotEls.forEach((s) => {
             s.style.width = w + "px";
           });
