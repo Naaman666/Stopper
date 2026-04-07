@@ -1110,17 +1110,10 @@
           speechSynthesis.speak(u);
           ttsUnlocked = true;
         }
-        function findHuVoice() {
-          return (
-            speechSynthesis
-              .getVoices()
-              .find((v) => v.lang && v.lang.startsWith("hu")) || null
-          );
-        }
         speechSynthesis.addEventListener("voiceschanged", () => {
-          preferredVoice = findHuVoice();
+          preferredVoice = findHuVoice(speechSynthesis);
         });
-        preferredVoice = findHuVoice();
+        preferredVoice = findHuVoice(speechSynthesis);
 
         const HU = {
           10: "tíz",
