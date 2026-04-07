@@ -4,17 +4,17 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - '**/*.html'
-      - '**/*.js'
-      - '**/*.css'
-      - '.github/workflows/html-js-ci.yml'
+      - "**/*.html"
+      - "**/*.js"
+      - "**/*.css"
+      - ".github/workflows/html-js-ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - '**/*.html'
-      - '**/*.js'
-      - '**/*.css'
-      - '.github/workflows/html-js-ci.yml'
+      - "**/*.html"
+      - "**/*.js"
+      - "**/*.css"
+      - ".github/workflows/html-js-ci.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,7 +35,7 @@ jobs:
       - name: 🟨 Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: 📦 Install linters
         run: npm install -g htmlhint eslint
@@ -68,12 +68,12 @@ jobs:
       - name: 🟨 Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: 📦 Install Prettier
         run: npm install -g prettier
 
-      - name: 🧹 Auto-fix: Prettier format
+      - name: "🧹 Auto-fix: Prettier format"
         run: |
           prettier --write "**/*.html" "**/*.js" "**/*.css" \
             --ignore-path .gitignore \
