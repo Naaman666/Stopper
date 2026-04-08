@@ -59,7 +59,7 @@ function findHuVoice(synth) {
 }
 
 // Export for Node.js testing environment
-/* eslint-disable no-undef */
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     presetLabel,
@@ -68,4 +68,3 @@ if (typeof module !== "undefined" && module.exports) {
     findHuVoice,
   };
 }
-/* eslint-enable no-undef */

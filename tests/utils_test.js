@@ -326,10 +326,10 @@ tests.forEach((test) => {
 
 if (failedCount > 0) {
   console.log(`\nTotal ${failedCount} tests failed.`);
-  // eslint-disable-next-line no-undef
+
   process.exit(1);
 } else {
   console.log("\nAll tests passed successfully!");
-  // eslint-disable-next-line no-undef
+
   process.exit(0);
 }
