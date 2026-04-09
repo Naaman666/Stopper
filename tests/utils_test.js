@@ -215,6 +215,36 @@ const tests = [
     expected: "–",
     name: "presetLabel: Null min and sec",
   },
+  {
+    fn: presetLabel,
+    input: [{ min: 5, sec: null }],
+    expected: "–",
+    name: "presetLabel: Null sec property",
+  },
+  {
+    fn: presetLabel,
+    input: [{ min: undefined, sec: 30 }],
+    expected: "–",
+    name: "presetLabel: Undefined min property",
+  },
+  {
+    fn: presetLabel,
+    input: ["string"],
+    expected: "–",
+    name: "presetLabel: String input",
+  },
+  {
+    fn: presetLabel,
+    input: [123],
+    expected: "–",
+    name: "presetLabel: Number input",
+  },
+  {
+    fn: presetLabel,
+    input: [true],
+    expected: "–",
+    name: "presetLabel: Boolean input",
+  },
 
   // --- normalizePresetEntry Tests ---
   {
