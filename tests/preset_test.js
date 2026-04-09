@@ -9,6 +9,15 @@ const tests = [
   { input: { min: 5 }, expected: "–", name: "Missing sec" },
   { input: { sec: 30 }, expected: "–", name: "Missing min" },
   { input: { min: null, sec: 30 }, expected: "–", name: "Null min property" },
+  { input: { min: 5, sec: null }, expected: "–", name: "Null sec property" },
+  {
+    input: { min: undefined, sec: 30 },
+    expected: "–",
+    name: "Undefined min property",
+  },
+  { input: "string", expected: "–", name: "String input" },
+  { input: 123, expected: "–", name: "Number input" },
+  { input: true, expected: "–", name: "Boolean input" },
 ];
 
 let failedCount = 0;
