@@ -1,25 +1,47 @@
-# Stopper projekt
+# CLAUDE.md
 
-## Kommunikáció
+This file provides guidance to Claude when working with this repository.
 
-- Mindig magyarul kommunikálj
+## Project Overview
 
-## Projekt info
+Describe the project purpose and goals here.
 
-- GitHub repo: Naaman666/stopper
-- GitHub Pages-en fut (statikus oldal, index.html)
-- Branch névformátum: `claude/...`
-- A `main` ág védett – csak PR-on keresztül lehet merge-elni
+## Development Setup
 
-## Fájlstruktúra
+```bash
+# Install dependencies
+npm install
+# or
+pip install -r requirements.txt
+```
 
-- `index.html` – az egész app (CSS + HTML + JS egy fájlban)
-- `manifest.json` – PWA manifest
-- `sw.js` – Service Worker
-- `icon.svg` – app ikon
+## Common Commands
 
-## Fejlesztési szabályok
+```bash
+# Run tests
+npm test
+# or
+pytest
 
-- Ne hozz létre dokumentációs fájlokat (README, stb.) hacsak nem kérik
-- Ne add hozzá a CLAUDE.md-t git commithoz hacsak nem kérik
-- Mindig push-old a változtatásokat a branch-re
+# Lint / format
+npm run lint
+# or
+ruff check .
+```
+
+## Code Style
+
+- Follow the existing patterns and conventions in the codebase.
+- Keep functions small and focused on a single responsibility.
+- Write clear, self-documenting code; only add comments where the logic is non-obvious.
+- Do not add unnecessary error handling, logging, or abstractions.
+
+## Architecture Notes
+
+Describe key architectural decisions and important modules here.
+
+## Git Workflow
+
+- Always work on the `develop` branch.
+- Never push/commit directly to `main`.
+- Every commit should go to the `develop` branch.
