@@ -40,8 +40,7 @@ node test_bench.js
 
 ## Git Workflow
 
-- Always work on the `develop` branch.
-- Never push/commit directly to `main`.
-- Every commit should go to the `develop` branch.
-- Only two branches are used: `develop` (active work) and `main` (stable releases).
-- Do not create feature branches, topic branches, or any other branches.
+Only two persistent branches exist: `develop` (active work) and `main` (stable releases).
+
+- **Humans:** always commit directly to `develop`. Never commit or push to `main`. Do not create feature or topic branches.
+- **AI agents (Claude, Codex, etc.):** open pull requests from a short-lived `claude/*` or `codex/*` branch. The PR must always target `develop`, never `main`. The branch is deleted after merge.
