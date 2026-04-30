@@ -38,9 +38,9 @@ node test_bench.js
 - `netlify.toml` — Netlify deployment config.
 - `benchmark.js` / `test_bench.js` — performance benchmarks.
 
-## Git Workflow
+## Git workflow
 
-Only two persistent branches exist: `develop` (active work) and `main` (stable releases).
-
-- **Humans:** always commit directly to `develop`. Never commit or push to `main`. Do not create feature or topic branches.
-- **AI agents (Claude, Codex, etc.):** open pull requests from a short-lived `claude/*` or `codex/*` branch. The PR must always target `develop`, never `main`. The branch is deleted after merge.
+- Only two persistent branches: develop and main
+- Humans: commit directly to develop, never to main
+- AI agents (Claude, Codex): open PRs from short-lived claude/* or codex/* branch, always targeting develop, never main. Delete branch after merge.
+- Do not create feature or topic branches.
