@@ -42,5 +42,7 @@ node test_bench.js
 
 Only two persistent branches exist: `develop` (active work) and `main` (stable releases).
 
-- **Humans:** always commit directly to `develop`. Never commit or push to `main`. Do not create feature or topic branches.
-- **AI agents (Claude, Codex, etc.):** open pull requests from a short-lived `claude/*` or `codex/*` branch. The PR must always target `develop`, never `main`. The branch is deleted after merge.
+- **Humans:** always commit directly to `develop`. Never commit or push to `main`.
+- **AI agents (Claude, Codex, etc.):** open pull requests from a short-lived `claude/*` or `codex/* ` branch. The PR must always target `develop`, never `main`. Delete branch after merge.
+
+Do not create feature or topic branches.
